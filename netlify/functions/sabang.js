@@ -1,6 +1,5 @@
 const iconv = require("iconv-lite");
 
-// 메모리에 XML 저장 (같은 인스턴스 내에서만 유효)
 let storedXml = null;
 
 exports.handler = async (event) => {
@@ -14,7 +13,7 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: "" };
   }
 
-  // GET 요청 → XML 반환 (사방넷이 호출)
+  // GET → XML 반환
   if (event.httpMethod === "GET") {
     if (!storedXml) {
       return { statusCode: 404, headers, body: "XML not found" };
@@ -22,29 +21,42 @@ exports.handler = async (event) => {
     const eucKrBuffer = iconv.encode(storedXml, "EUC-KR");
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/xml; charset=EUC-KR" },
+      headers: { 
+        "Content-Type": "application/xml; charset=EUC-KR",
+        "Access-Control-Allow-Origin": "*"
+      },
       isBase64Encoded: true,
       body: eucKrBuffer.toString("base64")
     };
   }
 
-  // POST 요청 → XML 저장 후 사방넷 호출
+  // POST → action 분기
   try {
-    const { xml, sabangUrl } = JSON.parse(event.body);
-    storedXml = xml;
+    const body = JSON.parse(event.body);
 
-    const xmlUrl = "https://joyful-cobbler-7e9d22.netlify.app/.netlify/functions/sabang";
-    const apiUrl = sabangUrl + "?xml_url=" + encodeURIComponent(xmlUrl);
+    // action=store: XML만 저장
+    if (body.action === "store") {
+      storedXml = body.xml;
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ result: "stored" })
+      };
+    }
 
-    const response = await fetch(apiUrl);
-    const resultBuffer = Buffer.from(await response.arrayBuffer());
-    const result = iconv.decode(resultBuffer, "EUC-KR");
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ result: "success", sabangResponse: result })
-    };
+    // action=send: 사방넷 호출
+    if (body.action === "send") {
+      const xmlUrl = "https://joyful-cobbler-7e9d22.netlify.app/.netlify/functions/sabang";
+      const apiUrl = body.sabangUrl + "?xml_url=" + encodeURIComponent(xmlUrl);
+      const response = await fetch(apiUrl);
+      const resultBuffer = Buffer.from(await response.arrayBuffer());
+      const result = iconv.decode(resultBuffer, "EUC-KR");
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ result: "success", sabangResponse: result })
+      };
+    }
 
   } catch (err) {
     return {
