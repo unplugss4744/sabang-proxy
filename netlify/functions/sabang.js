@@ -1,5 +1,4 @@
 const iconv = require("iconv-lite");
-const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   const headers = {
@@ -15,19 +14,20 @@ exports.handler = async (event) => {
   try {
     const { xml, sabangUrl } = JSON.parse(event.body);
 
-    // UTF-8 XML을 EUC-KR로 변환해서 파일로 저장
+    // UTF-8 → EUC-KR 변환
     const eucKrBuffer = iconv.encode(xml, "EUC-KR");
 
-    // 사방넷에 EUC-KR XML 직접 POST
-    const response = await fetch(sabangUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/xml; charset=EUC-KR"
-      },
-      body: eucKrBuffer
-    });
+    // Netlify Function URL (자기 자신)
+    const selfUrl = "https://joyful-cobbler-7e9d22.netlify.app/.netlify/functions/xml";
 
-    const resultBuffer = await response.buffer();
+    // 사방넷에 XML URL 전달
+    const apiUrl = sabangUrl + "?xml_url=" + encodeURIComponent(selfUrl);
+
+    // XML을 임시 저장 (global 변수)
+    global.pendingXml = eucKrBuffer;
+
+    const response = await fetch(apiUrl);
+    const resultBuffer = Buffer.from(await response.arrayBuffer());
     const result = iconv.decode(resultBuffer, "EUC-KR");
 
     return {
