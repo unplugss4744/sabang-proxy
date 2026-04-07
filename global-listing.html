@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DALES LONDON INC · 상품 등록</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f7f8fc; color: #1a1a2e; font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; }
+
+  /* 헤더 */
+  .header { background: #fff; border-bottom: 1px solid #e8eaf0; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .header-logo { display: flex; align-items: center; gap: 12px; }
+  .header-icon { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #4f8ef7, #38c9b0); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .header-title { font-family: 'Space Mono', monospace; font-size: 16px; letter-spacing: 1px; color: #1a1a2e; font-weight: 700; }
+  .header-sub { font-size: 11px; color: #9098b0; letter-spacing: 2px; margin-top: 2px; }
+  .btn-settings { background: #f0f2f8; border: 1px solid #e0e4ef; border-radius: 8px; padding: 8px 18px; color: #444; cursor: pointer; font-size: 14px; font-family: inherit; transition: all 0.2s; }
+  .btn-settings:hover { background: #e4e8f5; }
+  .btn-settings.active { background: #e4e8f5; border-color: #4f8ef7; color: #4f8ef7; }
+
+  /* 설정 패널 */
+  .settings-panel { background: #fff; border-bottom: 1px solid #e8eaf0; padding: 24px 32px; display: none; }
+  .settings-panel.open { display: block; }
+  .settings-section-title { font-size: 12px; color: #4f8ef7; letter-spacing: 2px; margin-bottom: 14px; font-weight: 700; }
+  .settings-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .settings-field { display: flex; flex-direction: column; gap: 6px; }
+  .settings-field.grow2 { flex: 2; min-width: 280px; }
+  .settings-field.grow1 { flex: 1; min-width: 140px; }
+  .settings-field label { font-size: 13px; color: #555; font-weight: 500; }
+  .margin-row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .margin-field { display: flex; flex-direction: column; gap: 6px; }
+  .margin-field label { font-size: 13px; color: #555; }
+  .margin-input { background: #f7f8fc; border: 1px solid #dde1ee; border-radius: 8px; padding: 8px 12px; color: #1a1a2e; width: 100px; font-size: 15px; font-family: inherit; }
+  .settings-note { font-size: 12px; color: #aaa; margin-top: 10px; }
+
+  /* 작성자 관리 */
+  .writer-manage { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .writer-tag { background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 20px; padding: 4px 12px; font-size: 13px; color: #4f8ef7; display: flex; align-items: center; gap: 6px; }
+  .writer-tag button { background: none; border: none; cursor: pointer; color: #aaa; font-size: 14px; padding: 0; line-height: 1; }
+  .writer-tag button:hover { color: #f44; }
+  .writer-add { display: flex; gap: 8px; margin-top: 8px; }
+  .writer-add input { flex: 1; background: #f7f8fc; border: 1px solid #dde1ee; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; color: #1a1a2e; outline: none; }
+  .writer-add button { background: #4f8ef7; border: none; border-radius: 8px; padding: 8px 16px; color: #fff; cursor: pointer; font-size: 14px; font-family: inherit; }
+
+  /* 메인 */
+  .main { max-width: 760px; margin: 0 auto; padding: 36px 24px; }
+
+  /* 공통 인풋 */
+  .input { width: 100%; background: #fff; border: 1.5px solid #dde1ee; border-radius: 10px; padding: 15px 18px; color: #1a1a2e; font-size: 16px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+  .input:focus { border-color: #4f8ef7; box-shadow: 0 0 0 3px rgba(79,142,247,0.1); }
+  .label { font-size: 14px; color: #444; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600; }
+  .field { display: flex; flex-direction: column; }
+  .field-note { font-size: 12px; color: #aaa; margin-top: 6px; }
+
+  /* 폼 */
+  .form { display: flex; flex-direction: column; gap: 28px; }
+
+  /* 이미지 업로드 */
+  .upload-zone { border: 2px dashed #c7d2fe; border-radius: 16px; padding: 48px 20px; text-align: center; cursor: pointer; background: #fff; transition: all 0.2s; }
+  .upload-zone:hover { border-color: #4f8ef7; background: #f5f8ff; }
+  .upload-zone.has-images { padding: 20px; }
+  .upload-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-text { color: #666; font-size: 15px; font-weight: 500; }
+  .upload-sub { color: #bbb; font-size: 13px; margin-top: 6px; }
+  .previews { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .preview-item { position: relative; }
+  .preview-item img { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; border: 2px solid #e0e4ef; }
+  .preview-badge { position: absolute; top: 4px; right: 4px; background: #4f8ef7; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; }
+  .upload-add { width: 120px; height: 120px; border-radius: 10px; border: 2px dashed #c7d2fe; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 32px; background: #f7f8fc; }
+
+  /* 국가 버튼 */
+  .country-row { display: flex; gap: 16px; }
+  .country-col { flex: 1; }
+  .price-col { flex: 1; }
+  .country-btns { display: flex; gap: 8px; }
+  .country-btn { flex: 1; padding: 13px 0; border-radius: 10px; border: 1.5px solid #dde1ee; background: #fff; color: #666; cursor: pointer; font-size: 15px; font-family: inherit; transition: all 0.2s; font-weight: 500; }
+  .country-btn.active { border-color: #4f8ef7; background: #eef2ff; color: #4f8ef7; font-weight: 700; }
+
+  /* select 드롭다운 */
+  .select { width: 100%; background: #fff; border: 1.5px solid #dde1ee; border-radius: 10px; padding: 15px 18px; color: #1a1a2e; font-size: 16px; font-family: inherit; outline: none; transition: border-color 0.2s; appearance: none; cursor: pointer; }
+  .select:focus { border-color: #4f8ef7; box-shadow: 0 0 0 3px rgba(79,142,247,0.1); }
+
+  /* 에러 */
+  .error-box { background: #fff5f5; border: 1px solid #fcc; border-radius: 10px; padding: 12px 16px; color: #e53e3e; font-size: 14px; display: none; }
+  .error-box.show { display: block; }
+
+  /* 제출 버튼 */
+  .btn-submit { background: linear-gradient(135deg, #4f8ef7, #38c9b0); border: none; border-radius: 12px; padding: 18px; font-size: 17px; font-weight: 700; color: #fff; cursor: pointer; letter-spacing: 1px; font-family: inherit; width: 100%; box-shadow: 0 4px 15px rgba(79,142,247,0.3); transition: all 0.2s; }
+  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(79,142,247,0.4); }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* 로딩 */
+  .loading { text-align: center; padding: 80px 0; display: none; }
+  .loading.show { display: block; }
+  .loading-spinner { font-size: 48px; margin-bottom: 24px; display: inline-block; animation: spin 2s linear infinite; }
+  .loading-msg { font-size: 17px; color: #4f8ef7; margin-bottom: 8px; font-weight: 600; }
+  .loading-sub { font-size: 14px; color: #aaa; margin-top: 12px; }
+  .progress-wrap { max-width: 300px; margin: 16px auto 0; }
+  .progress-item { margin-bottom: 8px; }
+  .progress-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .progress-bar-bg { background: #e8eaf0; border-radius: 4px; height: 6px; }
+  .progress-bar { background: linear-gradient(90deg, #4f8ef7, #38c9b0); border-radius: 4px; height: 6px; width: 0%; transition: width 0.3s; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* 결과 */
+  .result { display: none; flex-direction: column; gap: 20px; }
+  .result.show { display: flex; }
+  .result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .result-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+  .result-date { font-size: 13px; color: #aaa; }
+  .thumb-row { display: flex; gap: 8px; }
+  .thumb-item { position: relative; }
+  .thumb-item img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid #e0e4ef; }
+  .cdn-badge { position: absolute; bottom: 4px; right: 4px; background: #38c9b0; border-radius: 3px; font-size: 9px; padding: 1px 4px; color: #fff; font-weight: 700; }
+
+  /* 카드 */
+  .card { background: #fff; border: 1px solid #e8eaf0; border-radius: 14px; padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .card-title { font-size: 14px; color: #888; margin-bottom: 16px; font-weight: 600; }
+  .row { display: flex; justify-content: space-between; margin-bottom: 12px; align-items: baseline; }
+  .row-label { font-size: 14px; color: #888; }
+  .row-value { font-size: 15px; color: #1a1a2e; }
+  .row-value.highlight { font-size: 17px; color: #1a1a2e; font-weight: 700; }
+  .desc-box { margin-top: 12px; padding: 14px; background: #f7f8fc; border-radius: 8px; }
+  .desc-label { font-size: 12px; color: #aaa; margin-bottom: 6px; }
+  .desc-text { font-size: 14px; color: #555; line-height: 1.8; white-space: pre-line; }
+  .url-item { margin-bottom: 8px; }
+  .url-label { font-size: 12px; color: #aaa; margin-bottom: 3px; }
+  .url-value { font-size: 12px; color: #4f8ef7; word-break: break-all; background: #f7f8fc; padding: 6px 10px; border-radius: 6px; }
+  .divider { border-top: 1px solid #e8eaf0; margin: 14px 0; padding-top: 14px; }
+  .mall-title-row { font-size: 12px; color: #4f8ef7; letter-spacing: 2px; margin-bottom: 10px; font-weight: 700; }
+
+  /* 쇼핑몰 가격 */
+  .mall-price { background: #f7f8fc; border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .mall-name { font-size: 15px; color: #1a1a2e; font-weight: 600; }
+  .mall-settle { font-size: 12px; color: #aaa; margin-top: 2px; }
+  .mall-price-val { font-size: 20px; color: #4f8ef7; font-family: 'Space Mono', monospace; font-weight: 700; }
+
+  /* 성공 */
+  .success-box { background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 10px; padding: 14px 16px; color: #276749; font-size: 14px; font-weight: 600; }
+
+  /* 하단 버튼 */
+  .result-btns { display: flex; gap: 12px; margin-top: 8px; }
+  .btn-reset { flex: 1; background: #f7f8fc; border: 1.5px solid #dde1ee; border-radius: 12px; padding: 15px; color: #555; cursor: pointer; font-size: 15px; font-family: inherit; font-weight: 600; }
+  .btn-copy { flex: 1; background: linear-gradient(135deg, #4f8ef7, #38c9b0); border: none; border-radius: 12px; padding: 15px; color: #fff; cursor: pointer; font-size: 15px; font-weight: 700; font-family: inherit; }
+
+  @media (max-width: 600px) {
+    .header { padding: 16px 18px; }
+    .main { padding: 24px 16px; }
+    .country-row { flex-direction: column; }
+    .settings-row { flex-direction: column; }
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+  <div class="header-logo">
+    <div class="header-icon">🏪</div>
+    <div>
+      <div class="header-title">DALES LONDON INC</div>
+      <div class="header-sub">상품 등록 시스템</div>
+    </div>
+  </div>
+  <button class="btn-settings" id="btnSettings" onclick="toggleSettings()">⚙ 설정</button>
+</div>
+
+<!-- 설정 패널 -->
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-section-title">연동 설정</div>
+  <div class="settings-row">
+    <div class="settings-field grow2">
+      <label>Google Sheets Web App URL</label>
+      <input class="input" id="sheetsUrl" placeholder="https://script.google.com/macros/s/..." style="font-size:13px;">
+    </div>
+    <div class="settings-field grow1">
+      <label>Secret Key</label>
+      <input class="input" id="secretKey" placeholder="비밀키">
+    </div>
+  </div>
+
+  <div class="settings-section-title">작성자 관리</div>
+  <div class="writer-manage" id="writerTags"></div>
+  <div class="writer-add">
+    <input type="text" id="writerInput" placeholder="작성자 이름 입력" onkeydown="if(event.key==='Enter') addWriter()">
+    <button onclick="addWriter()">+ 추가</button>
+  </div>
+
+  <div class="settings-section-title" style="margin-top:20px;">마진율 설정</div>
+  <div class="margin-row">
+    <div class="margin-field">
+      <label>원화 마진율 (%)</label>
+      <input class="margin-input" id="marginKRW" type="number" min="0" max="100" value="0">
+    </div>
+    <div class="margin-field">
+      <label>유로 마진율 (%)</label>
+      <input class="margin-input" id="marginEUR" type="number" min="0" max="100" value="0">
+    </div>
+    <div class="margin-field">
+      <label>엔화 마진율 (%)</label>
+      <input class="margin-input" id="marginJPY" type="number" min="0" max="100" value="0">
+    </div>
+  </div>
+  <div class="settings-note">* 현재 마진 0% — 수수료만 커버</div>
+</div>
+
+<!-- 메인 -->
+<div class="main">
+
+  <!-- 폼 -->
+  <div class="form" id="formSection">
+
+    <!-- 이미지 업로드 -->
+    <div class="field">
+      <div class="label">상품 사진 <span style="color:#bbb;font-weight:400;">(최대 3장)</span></div>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondrop="handleDrop(event)" ondragover="event.preventDefault()">
+        <div id="uploadEmpty">
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">클릭하거나 드래그해서 사진 추가</div>
+          <div class="upload-sub">JPG, PNG · 최대 3장 · Cloudinary 자동 업로드</div>
+        </div>
+        <div class="previews" id="previewsWrap" style="display:none"></div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
+    </div>
+
+    <!-- 작성자 -->
+    <div class="field">
+      <div class="label">작성자</div>
+      <select class="select" id="writerSelect">
+        <option value="">작성자 선택</option>
+      </select>
+    </div>
+
+    <!-- 상품명 -->
+    <div class="field">
+      <div class="label">상품명 <span style="color:#bbb;font-weight:400;">(현지어 가능)</span></div>
+      <input class="input" id="productName" placeholder="예: Adidas Ultraboost 22, ナイキ エアマックス...">
+    </div>
+
+    <!-- 옵션정보 -->
+    <div class="field">
+      <div class="label">옵션 정보 <span style="color:#bbb;font-weight:400;">(선택)</span></div>
+      <input class="input" id="optionInfo" placeholder="예: 색상:블랙,화이트,그레이  /  사이즈:S,M,L,XL">
+      <div class="field-note">콜론(:) 앞 = 옵션제목 · 뒤 = 옵션값</div>
+    </div>
+
+    <!-- 구매국가 + 구매가 -->
+    <div class="country-row">
+      <div class="country-col">
+        <div class="label">구매 국가</div>
+        <div class="country-btns">
+          <button class="country-btn" id="btn한국" onclick="selectCountry('한국')">🇰🇷 한국</button>
+          <button class="country-btn" id="btn독일" onclick="selectCountry('독일')">🇩🇪 독일</button>
+          <button class="country-btn" id="btn일본" onclick="selectCountry('일본')">🇯🇵 일본</button>
+        </div>
+      </div>
+      <div class="price-col">
+        <div class="label" id="priceLabel">구매가 (₩)</div>
+        <input class="input" id="purchasePrice" type="number" placeholder="10000">
+      </div>
+    </div>
+
+    <!-- 에러 -->
+    <div class="error-box" id="errorBox"></div>
+
+    <!-- 제출 -->
+    <button class="btn-submit" id="btnSubmit" onclick="handleSubmit()">🚀 상품 분석 및 등록</button>
+  </div>
+
+  <!-- 로딩 -->
+  <div class="loading" id="loadingSection">
+    <div class="loading-spinner">⚙️</div>
+    <div class="loading-msg" id="loadingMsg">처리 중...</div>
+    <div class="progress-wrap" id="progressWrap"></div>
+    <div class="loading-sub">잠시만 기다려주세요...</div>
+  </div>
+
+  <!-- 결과 -->
+  <div class="result" id="resultSection">
+    <div class="result-header">
+      <div style="font-size:32px">✅</div>
+      <div>
+        <div class="result-title">등록 완료</div>
+        <div class="result-date" id="resultDate"></div>
+      </div>
+    </div>
+    <div class="thumb-row" id="thumbRow"></div>
+    <div class="card">
+      <div class="card-title">📦 상품 정보</div>
+      <div id="productInfoRows"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">☁️ Cloudinary 이미지 URL</div>
+      <div id="urlRows"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">💰 가격 계산</div>
+      <div id="priceRows"></div>
+    </div>
+    <div class="success-box" id="successBox" style="display:none">📊 Google Sheets 저장 완료 (시트1 + 시트2 자동 생성)</div>
+    <div class="result-btns">
+      <button class="btn-reset" onclick="resetForm()">← 새 상품 등록</button>
+      <button class="btn-copy" onclick="copyPrices()">📋 가격 복사</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const CLOUD_NAME    = "drs1dadxl";
+const UPLOAD_PRESET = "auto_sabang";
+const FALLBACK_RATES = { EUR: 1480, JPY: 9.2 };
+const COMMISSION = { 네이버: 0.05, 롯데온: 0.20 };
+
+// 기본 작성자 목록
+let writers = ["최성수", "조민", "홍상희", "강미리"];
+let selectedCountry = "한국";
+let selectedImages  = [];
+let lastResult      = null;
+
+// ── 초기화 ────────────────────────────────────────────────
+window.onload = function() {
+  // localStorage에서 설정 불러오기
+  const savedUrl     = localStorage.getItem("sheetsUrl") || "";
+  const savedKey     = localStorage.getItem("secretKey") || "";
+  const savedWriters = localStorage.getItem("writers");
+  if (savedUrl) document.getElementById("sheetsUrl").value = savedUrl;
+  if (savedKey) document.getElementById("secretKey").value = savedKey;
+  if (savedWriters) writers = JSON.parse(savedWriters);
+  renderWriters();
+  selectCountry("한국");
+};
+
+// 설정 저장
+document.getElementById("sheetsUrl").addEventListener("change", function() {
+  localStorage.setItem("sheetsUrl", this.value);
+});
+document.getElementById("secretKey").addEventListener("change", function() {
+  localStorage.setItem("secretKey", this.value);
+});
+
+// ── 설정 토글 ─────────────────────────────────────────────
+function toggleSettings() {
+  const panel = document.getElementById("settingsPanel");
+  const btn   = document.getElementById("btnSettings");
+  panel.classList.toggle("open");
+  btn.classList.toggle("active");
+}
+
+// ── 작성자 관리 ───────────────────────────────────────────
+function renderWriters() {
+  const tagsEl  = document.getElementById("writerTags");
+  const selectEl = document.getElementById("writerSelect");
+
+  tagsEl.innerHTML = writers.map((w, i) =>
+    `<div class="writer-tag">${w}<button onclick="removeWriter(${i})">×</button></div>`
+  ).join("");
+
+  const currentVal = selectEl.value;
+  selectEl.innerHTML = '<option value="">작성자 선택</option>' +
+    writers.map(w => `<option value="${w}" ${w === currentVal ? "selected" : ""}>${w}</option>`).join("");
+}
+
+function addWriter() {
+  const input = document.getElementById("writerInput");
+  const name  = input.value.trim();
+  if (!name || writers.includes(name)) return;
+  writers.push(name);
+  localStorage.setItem("writers", JSON.stringify(writers));
+  input.value = "";
+  renderWriters();
+}
+
+function removeWriter(idx) {
+  writers.splice(idx, 1);
+  localStorage.setItem("writers", JSON.stringify(writers));
+  renderWriters();
+}
+
+// ── 국가 선택 ─────────────────────────────────────────────
+function selectCountry(c) {
+  selectedCountry = c;
+  ["한국","독일","일본"].forEach(n => {
+    document.getElementById("btn"+n).classList.toggle("active", n === c);
+  });
+  const sym = c === "한국" ? "₩" : c === "독일" ? "€" : "¥";
+  const ph  = c === "한국" ? "10000" : c === "독일" ? "29.99" : "3980";
+  document.getElementById("priceLabel").textContent = `구매가 (${sym})`;
+  document.getElementById("purchasePrice").placeholder = ph;
+}
+
+// ── 파일 처리 ─────────────────────────────────────────────
+function handleFiles(files) {
+  selectedImages = Array.from(files).slice(0, 3);
+  renderPreviews();
+}
+function handleDrop(e) {
+  e.preventDefault();
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/")).slice(0, 3);
+  selectedImages = files;
+  renderPreviews();
+}
+function addMoreImage() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.multiple = true;
+  input.onchange = (e) => {
+    const newFiles = Array.from(e.target.files);
+    const combined = [...selectedImages, ...newFiles].slice(0, 3);
+    selectedImages = combined;
+    renderPreviews();
+  };
+  input.click();
+}
+function renderPreviews() {
+  const zone  = document.getElementById("uploadZone");
+  const empty = document.getElementById("uploadEmpty");
+  const wrap  = document.getElementById("previewsWrap");
+  if (selectedImages.length === 0) {
+    zone.classList.remove("has-images");
+    empty.style.display = "block";
+    wrap.style.display  = "none";
+    return;
+  }
+  zone.classList.add("has-images");
+  empty.style.display = "none";
+  wrap.style.display  = "flex";
+  wrap.innerHTML = selectedImages.map((f, i) =>
+    `<div class="preview-item">
+      <img src="${URL.createObjectURL(f)}" alt="">
+      <div class="preview-badge">${i+1}</div>
+    </div>`
+  ).join("") + (selectedImages.length < 3
+    ? `<div class="upload-add" onclick="event.stopPropagation(); addMoreImage()">+</div>` : "");
+}
+
+// ── 환율 조회 ─────────────────────────────────────────────
+async function fetchRate(currency) {
+  try {
+    const res  = await fetch("https://api.exchangerate-api.com/v4/latest/KRW");
+    const data = await res.json();
+    if (currency === "EUR") return Math.round(1 / data.rates.EUR);
+    if (currency === "JPY") return Math.round((1 / data.rates.JPY) * 100) / 100;
+  } catch { return FALLBACK_RATES[currency]; }
+}
+
+// ── Cloudinary 업로드 ──────────────────────────────────────
+async function uploadCloudinary(file, idx) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("upload_preset", UPLOAD_PRESET);
+  fd.append("folder", "sabang");
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) updateProgress(idx, Math.round(e.loaded / e.total * 100));
+    };
+    xhr.onload = () => {
+      const res = JSON.parse(xhr.responseText);
+      if (res.secure_url) { updateProgress(idx, 100); resolve(res.secure_url); }
+      else reject(new Error("Cloudinary 오류: " + (res.error?.message || JSON.stringify(res))));
+    };
+    xhr.onerror = () => reject(new Error("네트워크 오류"));
+    xhr.send(fd);
+  });
+}
+
+function updateProgress(idx, pct) {
+  const bar = document.getElementById(`prog-${idx}`);
+  const lbl = document.getElementById(`prog-lbl-${idx}`);
+  if (bar) bar.style.width = pct + "%";
+  if (lbl) lbl.textContent = `이미지 ${idx+1} · ${pct}%`;
+}
+
+function initProgress(count) {
+  const wrap = document.getElementById("progressWrap");
+  wrap.innerHTML = Array.from({length: count}, (_, i) =>
+    `<div class="progress-item">
+      <div class="progress-label" id="prog-lbl-${i}">이미지 ${i+1} · 0%</div>
+      <div class="progress-bar-bg"><div class="progress-bar" id="prog-${i}"></div></div>
+    </div>`
+  ).join("");
+}
+
+// ── 저장 요청 ─────────────────────────────────────────────
+async function sendToSheets(sheetsUrl, secretKey, rowData) {
+  if (!sheetsUrl) throw new Error("⚙ 설정에서 Google Sheets URL을 입력해주세요.");
+  const payload = encodeURIComponent(JSON.stringify({ secret: secretKey, ...rowData }));
+  const url = sheetsUrl + (sheetsUrl.includes("?") ? "&" : "?") + "d=" + payload;
+  await fetch(url, { method: "GET", mode: "no-cors" });
+}
+
+// ── 가격 계산 ─────────────────────────────────────────────
+function calcPrices(krw) {
+  const result = {};
+  Object.entries(COMMISSION).forEach(([mall, rate]) => {
+    result[mall] = Math.ceil(krw / (1 - rate) / 10) * 10;
+  });
+  return result;
+}
+
+// ── 메인 제출 ─────────────────────────────────────────────
+async function handleSubmit() {
+  const productName   = document.getElementById("productName").value.trim();
+  const purchasePrice = parseFloat(document.getElementById("purchasePrice").value);
+  const optionInfo    = document.getElementById("optionInfo").value.trim();
+  const sheetsUrl     = document.getElementById("sheetsUrl").value.trim();
+  const secretKey     = document.getElementById("secretKey").value.trim();
+  const writer        = document.getElementById("writerSelect").value;
+
+  // 설정 저장
+  localStorage.setItem("sheetsUrl", sheetsUrl);
+  localStorage.setItem("secretKey", secretKey);
+
+  if (!productName || !purchasePrice || selectedImages.length === 0) {
+    showError("상품명, 구매가, 사진을 모두 입력해주세요.");
+    return;
+  }
+  showError("");
+  showSection("loading");
+  document.getElementById("btnSubmit").disabled = true;
+
+  try {
+    // 1. 환율
+    setMsg("📡 환율 조회 중...");
+    let purchaseKRW  = purchasePrice;
+    let exchangeRate = 1;
+    let rateLabel    = "—";
+    if (selectedCountry !== "한국") {
+      const currency = selectedCountry === "독일" ? "EUR" : "JPY";
+      exchangeRate   = await fetchRate(currency);
+      purchaseKRW    = Math.round(purchasePrice * exchangeRate);
+      rateLabel      = `${currency} 1 = ₩${exchangeRate.toLocaleString()}`;
+    }
+    const marginPct = parseFloat(document.getElementById(
+      selectedCountry === "한국" ? "marginKRW" : selectedCountry === "독일" ? "marginEUR" : "marginJPY"
+    ).value) / 100 || 0;
+    const krwWithMargin = Math.round(purchaseKRW * (1 + marginPct));
+    const prices = calcPrices(krwWithMargin);
+
+    // 2. Cloudinary 업로드
+    setMsg("☁️ 이미지 업로드 중...");
+    initProgress(selectedImages.length);
+    const imageUrls = [];
+    for (let i = 0; i < selectedImages.length; i++) {
+      const url = await uploadCloudinary(selectedImages[i], i);
+      imageUrls.push(url);
+    }
+
+    // 3. 데이터 구성
+    setMsg("📊 저장 중...");
+    const now = new Date();
+    const currency = selectedCountry === "한국" ? "KRW" : selectedCountry === "독일" ? "EUR" : "JPY";
+    const rowData = {
+      등록일시:    now.toLocaleString("ko-KR"),
+      작성자:      writer,
+      원본상품명:  productName,
+      한국어상품명: productName,
+      옵션정보:    optionInfo,
+      카테고리:    "",
+      구매국가:    selectedCountry,
+      구매통화:    currency,
+      환율:        rateLabel,
+      구매가_원화:  purchaseKRW,
+      네이버_판매가: prices["네이버"],
+      롯데온_판매가: prices["롯데온"],
+      상품설명:    "",
+      키워드:      "",
+      이미지URL1:  imageUrls[0] || "",
+      이미지URL2:  imageUrls[1] || "",
+      이미지URL3:  imageUrls[2] || "",
+    };
+
+    // 4. Sheets 저장
+    if (sheetsUrl) {
+      await sendToSheets(sheetsUrl, secretKey, rowData);
+    }
+
+    const aiInfo = { korean_name: productName, category: "", description: "AI 분석 후 시트에 저장됩니다.", keywords: [] };
+    lastResult = { rowData, aiInfo, imageUrls, prices, purchaseKRW, currency, rateLabel, sheetsUrl };
+    renderResult(lastResult);
+    showSection("result");
+
+  } catch (e) {
+    console.error(e);
+    showSection("form");
+    showError("오류: " + e.message);
+  }
+  document.getElementById("btnSubmit").disabled = false;
+}
+
+// ── 결과 렌더링 ───────────────────────────────────────────
+function renderResult({ rowData, aiInfo, imageUrls, prices, purchaseKRW, currency, rateLabel, sheetsUrl }) {
+  document.getElementById("resultDate").textContent = rowData.등록일시;
+  document.getElementById("thumbRow").innerHTML = imageUrls.map(url => url
+    ? `<div class="thumb-item"><img src="${url}"><div class="cdn-badge">CDN</div></div>` : ""
+  ).join("");
+
+  let infoHtml = row("한국어 상품명", rowData.한국어상품명, true)
+    + row("원본 상품명", rowData.원본상품명)
+    + (rowData.작성자 ? row("작성자", rowData.작성자) : "")
+    + row("구매 국가", `${rowData.구매국가} (${currency})`);
+  if (rowData.옵션정보) infoHtml += row("옵션 정보", rowData.옵션정보);
+  infoHtml += `<div class="desc-box"><div class="desc-label">상품 설명</div><div class="desc-text">${aiInfo.description}</div></div>`;
+  document.getElementById("productInfoRows").innerHTML = infoHtml;
+
+  document.getElementById("urlRows").innerHTML = imageUrls.map((url, i) => url
+    ? `<div class="url-item"><div class="url-label">이미지 ${i+1}</div><div class="url-value">${url}</div></div>` : ""
+  ).join("");
+
+  let priceHtml = "";
+  if (currency !== "KRW") priceHtml += row("적용 환율", rateLabel);
+  const sym = currency === "KRW" ? "원" : currency === "EUR" ? "€" : "¥";
+  priceHtml += row(`구매가 (${currency})`, `${rowData.구매가_원화.toLocaleString()} ${sym}`);
+  priceHtml += row("구매가 (원화환산)", `₩${purchaseKRW.toLocaleString()}`);
+  priceHtml += `<div class="divider"><div class="mall-title-row">쇼핑몰별 판매가</div>` +
+    mallPrice("네이버", prices["네이버"], 5) + mallPrice("롯데온", prices["롯데온"], 20) + `</div>`;
+  document.getElementById("priceRows").innerHTML = priceHtml;
+  document.getElementById("successBox").style.display = sheetsUrl ? "block" : "none";
+}
+
+function row(label, value, highlight = false) {
+  return `<div class="row"><span class="row-label">${label}</span><span class="row-value ${highlight ? 'highlight' : ''}">${value}</span></div>`;
+}
+function mallPrice(mall, price, commission) {
+  const settled = Math.round(price * (1 - commission / 100));
+  return `<div class="mall-price">
+    <div><div class="mall-name">${mall}</div><div class="mall-settle">수수료 ${commission}% → 정산 ₩${settled.toLocaleString()}</div></div>
+    <div class="mall-price-val">₩${price.toLocaleString()}</div>
+  </div>`;
+}
+
+function showSection(name) {
+  document.getElementById("formSection").style.display    = name === "form"    ? "flex" : "none";
+  document.getElementById("loadingSection").className = "loading" + (name === "loading" ? " show" : "");
+  document.getElementById("resultSection").className  = "result"  + (name === "result"  ? " show" : "");
+}
+function setMsg(msg) { document.getElementById("loadingMsg").textContent = msg; }
+function showError(msg) {
+  const box = document.getElementById("errorBox");
+  box.textContent = msg;
+  box.classList.toggle("show", !!msg);
+}
+function resetForm() {
+  selectedImages = [];
+  renderPreviews();
+  document.getElementById("productName").value   = "";
+  document.getElementById("optionInfo").value    = "";
+  document.getElementById("purchasePrice").value = "";
+  document.getElementById("writerSelect").value  = "";
+  showSection("form");
+  showError("");
+}
+function copyPrices() {
+  if (!lastResult) return;
+  const { rowData, prices } = lastResult;
+  navigator.clipboard.writeText(
+    `상품명: ${rowData.한국어상품명}\n네이버: ₩${prices["네이버"].toLocaleString()}\n롯데온: ₩${prices["롯데온"].toLocaleString()}`
+  );
+  alert("복사됐어요!");
+}
+
+showSection("form");
+</script>
+</body>
+</html>
