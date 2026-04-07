@@ -726,8 +726,14 @@ async function sendOneSabang(rowNum, btn) {
   btn.disabled = true; btn.textContent = "전송중...";
   try {
     const payload = encodeURIComponent(JSON.stringify({ secret: secretKey, action: "sabang", row: rowNum }));
-    const res = await fetch(sheetsUrl + "?d=" + payload);
-    const json = await res.json();
+    await fetch(sheetsUrl + "?d=" + payload, { method: "GET", mode: "no-cors" });
+     // no-cors라 응답을 못 읽으므로 2초 대기 후 목록 새로고침
+    await new Promise(r => setTimeout(r, 2000));
+    btn.textContent = "✅완료";
+    btn.style.background = "#f0fff4";
+    btn.style.color = "#276749";
+    loadProducts();
+    return;
     if (json.result === "success") {
       btn.textContent = "✅완료"; btn.style.background = "#f0fff4"; btn.style.color = "#276749";
       loadProducts();
