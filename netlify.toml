@@ -3,3 +3,9 @@
 
 [functions]
   node_bundler = "esbuild"
+
+[[headers]]
+  for = "/.netlify/functions/sabang"
+  [headers.values]
+    Content-Type = "application/xml; charset=EUC-KR"
+    X-Content-Type-Options = "nosniff"
