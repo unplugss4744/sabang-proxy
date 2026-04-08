@@ -728,20 +728,14 @@ async function sendOneSabang(rowNum, btn) {
   const sheetsUrl = document.getElementById("sheetsUrl").value.trim();
   const secretKey = document.getElementById("secretKey").value.trim();
   if (!sheetsUrl) { alert("설정에서 Sheets URL을 입력해주세요."); return; }
+  const payload = encodeURIComponent(JSON.stringify({ secret: secretKey, action: "sabang", row: rowNum }));
   btn.disabled = true; btn.textContent = "전송중...";
   try {
-    const payload = encodeURIComponent(JSON.stringify({ secret: secretKey, action: "sabang", row: rowNum }));
-    await fetch(sheetsUrl + "?d=" + payload, { method: "GET", mode: "no-cors" });
-     // no-cors라 응답을 못 읽으므로 2초 대기 후 목록 새로고침
-    await new Promise(r => setTimeout(r, 2000));
-    btn.textContent = "✅완료";
-    btn.style.background = "#f0fff4";
-    btn.style.color = "#276749";
-    loadProducts();
-    return;
+    const res = await fetch(sheetsUrl + "?d=" + payload, { method: "GET", credentials: "omit" });
+    const json = JSON.parse(await res.text());
     if (json.result === "success") {
       btn.textContent = "✅완료"; btn.style.background = "#f0fff4"; btn.style.color = "#276749";
-      loadProducts();
+      setTimeout(() => loadProducts(), 2000);
     } else {
       btn.disabled = false; btn.textContent = "전송";
       alert("전송 실패: " + (json.message || "오류"));
