@@ -700,17 +700,18 @@ function renderProductTable(products) {
           const imgUrl = p[13] || "";
           const rowNum = p[20] || (i + 2);
           return `
-            <tr>
-              <td><input type="checkbox" class="row-check" data-row="${rowNum}"></td>
-              <td>${imgUrl ? `<img src="${imgUrl}" class="thumb-small" onerror="this.style.display='none'">` : "—"}</td>
-              <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p[2]||""}">${p[2]||"—"}</td>
-              <td>${p[1]||"—"}</td>
-              <td>${p[5]||"—"}</td>
-              <td style="font-weight:600;">₩${(p[8]||0).toLocaleString()}</td>
-              <td style="color:#4f8ef7;font-weight:600;">₩${(p[9]||0).toLocaleString()}</td>
-              <td style="color:#38c9b0;font-weight:600;">₩${(p[10]||0).toLocaleString()}</td>
-              <td><span class="status-badge ${badgeClass}">${status}</span></td>
-              <td><button class="btn-send" onclick="sendOneSabang(${rowNum}, this)" ${status.includes("완료")?"":""}>${status.includes("완료")?"재전송":"전송"}</button></td>
+         <tr>
+          <td><input type="checkbox" class="row-check" data-row="${rowNum}"></td>
+         <td>${imgUrl ? `<img src="${imgUrl}" class="thumb-small" onerror="this.style.display='none'">` : "—"}</td>
+         <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p[2]||""}">${p[2]||"—"}</td>
+         <td>—</td>
+         <td>${p[5]||"—"}</td>
+         <td style="font-weight:600;">₩${(p[8]||0).toLocaleString()}</td>
+         <td style="color:#4f8ef7;font-weight:600;">₩${(p[9]||0).toLocaleString()}</td>
+         <td style="color:#38c9b0;font-weight:600;">₩${(p[10]||0).toLocaleString()}</td>
+         <td><span class="status-badge ${badgeClass}">${status}</span></td>
+         <td><button class="btn-send" onclick="sendOneSabang(${rowNum}, this)">${status.includes("완료")?"재전송":"전송"}</button></td>
+  </tr>`;
             </tr>`;
         }).join("")}
       </tbody>
