@@ -702,7 +702,7 @@ function renderProductTable(products) {
               <td style="color:#4f8ef7;font-weight:600;">₩${(p.naver||0).toLocaleString()}</td>
               <td style="color:#38c9b0;font-weight:600;">₩${(p.lotte||0).toLocaleString()}</td>
               <td><span class="status-badge ${badgeClass}">${status}</span></td>
-              <td><button class="btn-send" onclick="sendOneSabang(${p.row}, this)">${status.includes("완료")?"재전송":"전송"}</button></td>
+              <td><button class="btn-send" onclick="sendOneSabang(${p.row}, this)">${status.includes("완료") ? "✏️ 수정" : "전송"}</button></td>
             </tr>`;
         }).join("")}
       </tbody>
