@@ -660,13 +660,11 @@ async function loadProducts() {
 
 function filterProducts() {
   const search = document.getElementById("searchInput").value.toLowerCase();
-  const writer = document.getElementById("filterWriter").value;
   const status = document.getElementById("filterStatus").value;
   const filtered = allProducts.filter(p => {
-    const matchSearch = !search || (p[2]||"").toLowerCase().includes(search);
-    const matchWriter = !writer || p[1] === writer;
-    const matchStatus = !status || (p[19]||"미전송").includes(status);
-    return matchSearch && matchWriter && matchStatus;
+    const matchSearch = !search || (p.name||"").toLowerCase().includes(search);
+    const matchStatus = !status || (p.status||"미전송").includes(status);
+    return matchSearch && matchStatus;
   });
   renderProductTable(filtered);
 }
@@ -684,8 +682,6 @@ function renderProductTable(products) {
           <th><input type="checkbox" id="checkAll" onclick="toggleAll(this)"></th>
           <th>썸네일</th>
           <th>상품명</th>
-          <th>작성자</th>
-          <th>구매국가</th>
           <th>원가</th>
           <th>네이버 판매가</th>
           <th>롯데온 판매가</th>
@@ -694,25 +690,20 @@ function renderProductTable(products) {
         </tr>
       </thead>
       <tbody>
-        ${products.map((p, i) => {
-          const status = p[19] || "미전송";
+        ${products.map((p) => {
+          const status = p.status || "미전송";
           const badgeClass = status.includes("완료") ? "status-done" : status.includes("대기") ? "status-wait" : "status-none";
-          const imgUrl = p[13] || "";
-          const rowNum = p[20] || (i + 2);
           return `
-         <tr>
-          <td><input type="checkbox" class="row-check" data-row="${rowNum}"></td>
-         <td>${imgUrl ? `<img src="${imgUrl}" class="thumb-small" onerror="this.style.display='none'">` : "—"}</td>
-         <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p[2]||""}">${p[2]||"—"}</td>
-         <td>—</td>
-         <td>${p[5]||"—"}</td>
-         <td style="font-weight:600;">₩${(p[8]||0).toLocaleString()}</td>
-         <td style="color:#4f8ef7;font-weight:600;">₩${(p[9]||0).toLocaleString()}</td>
-         <td style="color:#38c9b0;font-weight:600;">₩${(p[10]||0).toLocaleString()}</td>
-         <td><span class="status-badge ${badgeClass}">${status}</span></td>
-         <td><button class="btn-send" onclick="sendOneSabang(${rowNum}, this)">${status.includes("완료")?"재전송":"전송"}</button></td>
-  </tr>`;
-            
+            <tr>
+              <td><input type="checkbox" class="row-check" data-row="${p.row}"></td>
+              <td>${p.img ? `<img src="${p.img}" class="thumb-small" onerror="this.style.display='none'">` : "—"}</td>
+              <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.name}">${p.name||"—"}</td>
+              <td style="font-weight:600;">₩${(p.cost||0).toLocaleString()}</td>
+              <td style="color:#4f8ef7;font-weight:600;">₩${(p.naver||0).toLocaleString()}</td>
+              <td style="color:#38c9b0;font-weight:600;">₩${(p.lotte||0).toLocaleString()}</td>
+              <td><span class="status-badge ${badgeClass}">${status}</span></td>
+              <td><button class="btn-send" onclick="sendOneSabang(${p.row}, this)">${status.includes("완료")?"재전송":"전송"}</button></td>
+            </tr>`;
         }).join("")}
       </tbody>
     </table>
