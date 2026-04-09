@@ -1472,13 +1472,7 @@ function fillDBForm(p){
   });
 }
 
-async function gasCall(params){
-  const qs=new URLSearchParams(params).toString();
-  const res=await fetch(`${PO_GAS_URL}?${qs}`);
-  const data=await res.json();
-  if(data.status==='error') throw new Error(data.message||'GAS error');
-  return data;
-}
+
 </script>
 </body>
 </html>
