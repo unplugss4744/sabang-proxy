@@ -808,19 +808,28 @@ let poOrders=[], poConverted=[], dbProducts=[];
 })();
 
 async function fetchSabangOrders(){
-  const icon=document.getElementById('po-fetch-icon');
-  icon.textContent='⏳';
-  const startDate=document.getElementById('po-start-date').value.replace(/-/g,'');
-  const endDate=document.getElementById('po-end-date').value.replace(/-/g,'');
-  const status=document.getElementById('po-order-status').value;
-  try{
-    const res=await gasCall({action:'getOrders',startDate,endDate,status});
-    poOrders=res.orders||[];
+  const icon = document.getElementById('po-fetch-icon');
+  if(icon) icon.textContent = '⏳';
+  const startDate = document.getElementById('po-start-date').value.replace(/-/g,'');
+  const endDate   = document.getElementById('po-end-date').value.replace(/-/g,'');
+  const status    = document.getElementById('po-order-status').value;
+  try {
+    const res = await fetch('/.netlify/functions/order-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate, endDate, status })
+    });
+    const data = await res.json();
+    if(data.status !== 'ok') throw new Error(data.message);
+    poOrders = data.orders || [];
     renderOrdersTable(poOrders);
-    document.getElementById('po-order-count').textContent=poOrders.length+'건';
-    document.getElementById('po-orders-card').style.display='';
-  }catch(e){alert('주문 조회 실패: '+e.message);}
-  finally{icon.textContent='🔄';}
+    document.getElementById('po-order-count').textContent = poOrders.length + '건';
+    document.getElementById('po-orders-card').style.display = '';
+  } catch(e) {
+    alert('주문 조회 실패: ' + e.message);
+  } finally {
+    if(icon) icon.textContent = '🔄';
+  }
 }
 
 function renderOrdersTable(orders){
