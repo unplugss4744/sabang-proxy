@@ -816,7 +816,7 @@ async function fetchSabangOrders(){
   try {
     const res = await fetch('/.netlify/functions/order-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ startDate, endDate, status })
     });
     const data = await res.json();
