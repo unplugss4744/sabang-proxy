@@ -1330,15 +1330,6 @@ function renderResultTable(rows){
   });
 }
 
-function downloadACI(){
-  if(!poConverted.length){alert('변환 데이터가 없습니다.');return;}
-  const headers=['No','마스터번호','하우스번호','송하인','송하인전화번호','송하인주소','주문번호','받는사람(한글)','받는사람휴대폰번호','받는사람전화번호','우편번호','받는사람주소','받는사람상세주소','주민등록번호/개인통관고유부호','택배사요청메모','사업자통관여부','목록통관구분','실무게','박스수량','URL','Customs registered No','HS CODE','영문상품명','브랜드','해외단가','상품개수','','','','','','','','주문번호(세관신고용)'];
-  const rows=poConverted.map(r=>[r.no,'','',r.sender,r.senderTel,r.senderAddr,r.orderNo,r.receiver,r.phone1,r.phone2,r.zipCode,r.address,r.addrDetail,r.personalNo,r.memo,r.customsType,r.listingType,r.weight,r.boxQty,r.url,'',r.hsCode,r.engName,r.brand,r.exportPrice,r.qty,'','','','','','','',r.totalPrice]);
-  const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'ACI발주서');
-  XLSX.writeFile(wb,`ACI_발주서_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`);
-}
 
 async function fetchExchangeRate(){
   const btn=event.target; btn.textContent='⏳'; btn.disabled=true;
