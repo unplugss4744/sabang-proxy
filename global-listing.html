@@ -1068,10 +1068,11 @@ async function gasCall(params){
             <div class="po-field"><label>종료일</label><input type="date" id="po-end-date"/></div>
             <div class="po-field"><label>주문상태</label>
               <select id="po-order-status">
-                <option value="1">신규주문</option>
-                <option value="2">주문확인</option>
-                <option value="4">배송준비</option>
-              </select>
+                <option value="">전체</option>
+                <option value="001">신규주문</option>
+                <option value="002">주문확인</option>
+                <option value="004">출고대기</option>
+               </select>
             </div>
             <button class="po-btn-primary" onclick="fetchSabangOrders()"><span id="po-fetch-icon">🔄</span> 주문 불러오기</button>
           </div>
