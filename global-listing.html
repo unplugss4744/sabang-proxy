@@ -951,14 +951,8 @@ async function aiGenHsCode(){
   if(!engName){alert('상품명을 먼저 입력하세요.');return;}
   const btn=event.target; btn.textContent='⏳'; btn.disabled=true;
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:100,
-        messages:[{role:'user',content:`다음 상품의 HS CODE 6자리를 알려줘. 숫자 6자리만 답변. 설명 없이.\n상품명: "${engName}"`}]})
-    });
-    const data=await res.json();
-    const code=(data.content?.[0]?.text?.trim()||'').replace(/\D/g,'').slice(0,6);
-    if(code) document.getElementById('db-hs-code').value=code;
+    const res=await gasCall({action:'aiHsCode', engName:engName});
+    if(res.hsCode) document.getElementById('db-hs-code').value=res.hsCode;
   }catch(e){alert('AI 생성 실패: '+e.message);}
   finally{btn.textContent='🤖 AI';btn.disabled=false;}
 }
@@ -1262,8 +1256,8 @@ function renderResultTable(rows){
 
 function downloadACI(){
   if(!poConverted.length){alert('변환 데이터가 없습니다.');return;}
-  const headers=['No','마스터번호','하우스번호','송하인','송하인전화번호','송하인주소','주문번호','받는사람(한글)','받는사람휴대폰번호','받는사람전화번호','우편번호','받는사람주소','받는사람상세주소','주민등록번호/개인통관고유부호','택배사요청메모','사업자통관여부','목록통관구분','실무게','박스수량','URL','Customs registered No','HS CODE','영문상품명','브랜드','해외단가','상품개수','주문번호(세관신고용)'];
-  const rows=poConverted.map(r=>[r.no,'','',r.sender,r.senderTel,r.senderAddr,r.orderNo,r.receiver,r.phone1,r.phone2,r.zipCode,r.address,r.addrDetail,r.personalNo,r.memo,r.customsType,r.listingType,r.weight,r.boxQty,r.url,'',r.hsCode,r.engName,r.brand,r.exportPrice,r.qty,r.totalPrice]);
+  const headers=['No','마스터번호','하우스번호','송하인','송하인전화번호','송하인주소','주문번호','받는사람(한글)','받는사람휴대폰번호','받는사람전화번호','우편번호','받는사람주소','받는사람상세주소','주민등록번호/개인통관고유부호','택배사요청메모','사업자통관여부','목록통관구분','실무게','박스수량','URL','Customs registered No','HS CODE','영문상품명','브랜드','해외단가','상품개수','','','','','','','','주문번호(세관신고용)'];
+  const rows=poConverted.map(r=>[r.no,'','',r.sender,r.senderTel,r.senderAddr,r.orderNo,r.receiver,r.phone1,r.phone2,r.zipCode,r.address,r.addrDetail,r.personalNo,r.memo,r.customsType,r.listingType,r.weight,r.boxQty,r.url,'',r.hsCode,r.engName,r.brand,r.exportPrice,r.qty,'','','','','','','',r.totalPrice]);
   const csv=[headers,...rows].map(row=>row.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');
