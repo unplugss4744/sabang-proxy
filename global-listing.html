@@ -189,6 +189,54 @@ body { background: #f4f4f2; color: #1a1a2e; font-family: "Noto Sans KR", sans-se
   .list-toolbar .input, .list-toolbar .select { max-width: 100%; }
   .product-table th:nth-child(n+6), .product-table td:nth-child(n+6) { display: none; }
 }
+.po-container { padding: 20px; max-width: 1600px; }
+.po-header { margin-bottom: 20px; }
+.po-header h2 { margin: 0; font-size: 22px; color: #1a1a2e; }
+.po-subtitle { margin: 4px 0 0; color: #666; font-size: 13px; }
+.po-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .po-layout { grid-template-columns: 1fr; } }
+.po-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+.po-card-warn { border-color: #f5a623; background: #fffbf0; }
+.po-card-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; display: block; }
+.po-card-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.po-card-actions { display: flex; align-items: center; gap: 8px; }
+.po-date-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.po-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 120px; }
+.po-field label { font-size: 12px; font-weight: 600; color: #555; }
+.po-field input, .po-field select { border: 1px solid #ddd; border-radius: 6px; padding: 7px 10px; font-size: 13px; width: 100%; box-sizing: border-box; }
+.po-field input:focus, .po-field select:focus { outline: none; border-color: #1a1a2e; }
+.po-required { color: #e53935; }
+.po-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.po-divider { font-size: 12px; font-weight: 700; color: #888; border-top: 1px solid #eee; padding-top: 12px; margin: 10px 0 12px; }
+.po-ai-row { display: flex; gap: 6px; }
+.po-ai-row input { flex: 1; }
+.po-btn-primary { background: #1a1a2e; color: #fff; border: none; border-radius: 7px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.po-btn-primary:hover { background: #2d2d4e; }
+.po-btn-success { background: #27ae60; color: #fff; border: none; border-radius: 7px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.po-btn-success:hover { background: #219a52; }
+.po-btn-secondary { background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 7px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+.po-btn-sm { background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+.po-btn-ai { background: #6c3483; color: #fff; border: none; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.po-btn-ai:hover { background: #7d3c98; }
+.po-btn-row { display: flex; gap: 10px; margin-top: 14px; }
+.po-badge { background: #1a1a2e; color: #fff; border-radius: 12px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+.po-badge-green { background: #27ae60; }
+.po-table-wrap { overflow-x: auto; }
+.po-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.po-table th { background: #1a1a2e; color: #fff; padding: 8px 10px; text-align: left; font-size: 12px; white-space: nowrap; }
+.po-table td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; }
+.po-table tr:hover td { background: #f8f8ff; }
+.po-table-sm td, .po-table-sm th { padding: 5px 8px; font-size: 12px; }
+.po-table td.mapped { color: #27ae60; font-weight: 600; }
+.po-table td.unmapped { color: #e53935; font-weight: 600; }
+.po-search { width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; padding: 7px 10px; font-size: 13px; margin-bottom: 10px; }
+.po-hint { font-size: 12px; color: #888; margin-top: 8px; }
+.po-msg { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+.po-msg.success { background: #e8f5e9; color: #27ae60; }
+.po-msg.error { background: #fdecea; color: #e53935; }
+.po-nomatch-item { display: inline-block; background: #fff3e0; border: 1px solid #f5a623; border-radius: 5px; padding: 3px 10px; margin: 3px; font-size: 12px; }
+
+  
 </style>
 </head>
 <body>
@@ -242,6 +290,7 @@ body { background: #f4f4f2; color: #1a1a2e; font-family: "Noto Sans KR", sans-se
 <div class="tab-nav">
   <button class="tab-btn active" onclick="switchTab('tab1', this)">📦 상품 등록</button>
   <button class="tab-btn" onclick="switchTab('tab2', this)">📋 상품 목록</button>
+  <button class="tab-btn" onclick="switchTab('purchase-order')">📦 발주서 변환</button>
   <button class="tab-btn" onclick="switchTab('tab3', this)">🚚 주문/발송</button>
   <button class="tab-btn" onclick="switchTab('tab4', this)">💰 정산 관리</button>
 </div>
@@ -747,6 +796,372 @@ async function sendSelectedToSabang() {
     await new Promise(r => setTimeout(r, 1000));
   }
 }
+  const PO_GAS_URL = 'https://script.google.com/macros/s/AKfycbxjJdKOAun4fTtg7E76v7HwtF5_UTRblh77_HHCPWEN-vussFFn1PLpTwUksn5sfajYHQ/exec';
+let poOrders=[], poConverted=[], dbProducts=[];
+
+(function initDates(){
+  const today=new Date(), week=new Date();
+  week.setDate(today.getDate()-7);
+  document.getElementById('po-end-date').value=today.toISOString().slice(0,10);
+  document.getElementById('po-start-date').value=week.toISOString().slice(0,10);
+  loadProductList();
+})();
+
+async function fetchSabangOrders(){
+  const icon=document.getElementById('po-fetch-icon');
+  icon.textContent='⏳';
+  const startDate=document.getElementById('po-start-date').value.replace(/-/g,'');
+  const endDate=document.getElementById('po-end-date').value.replace(/-/g,'');
+  const status=document.getElementById('po-order-status').value;
+  try{
+    const res=await gasCall({action:'getOrders',startDate,endDate,status});
+    poOrders=res.orders||[];
+    renderOrdersTable(poOrders);
+    document.getElementById('po-order-count').textContent=poOrders.length+'건';
+    document.getElementById('po-orders-card').style.display='';
+  }catch(e){alert('주문 조회 실패: '+e.message);}
+  finally{icon.textContent='🔄';}
+}
+
+function renderOrdersTable(orders){
+  const tbody=document.getElementById('po-orders-tbody');
+  tbody.innerHTML='';
+  orders.forEach((o,i)=>{
+    const fullName=o.productName+(o.optionName?' '+o.optionName:'');
+    const matched=dbProducts.find(p=>p.korName===fullName||p.korName===o.productName);
+    tbody.innerHTML+=`<tr>
+      <td><input type="checkbox" class="po-order-check" value="${i}" checked/></td>
+      <td>${o.orderNo}</td><td>${(o.orderDate||'').slice(0,8)}</td><td>${o.receiver}</td>
+      <td>${o.collectName||'-'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.productName}">${o.productName}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.productName}">${o.productName}</td>
+      <td>${o.optionName||'-'}</td><td>${o.qty}</td>
+      <td class="${matched?'mapped':'unmapped'}">${matched?'✅ 매핑됨':'❌ 미등록'}</td>
+    </tr>`;
+  });
+}
+
+function toggleAllOrders(cb){document.querySelectorAll('.po-order-check').forEach(c=>c.checked=cb.checked);}
+function selectAllOrders(){document.getElementById('po-check-all').checked=true;toggleAllOrders({checked:true});}
+
+async function convertSelected(){
+  const checked=[...document.querySelectorAll('.po-order-check:checked')].map(c=>parseInt(c.value));
+  if(!checked.length){alert('주문을 선택하세요.');return;}
+  const selected=checked.map(i=>poOrders[i]);
+  try{
+    const res=await gasCall({action:'convertOrders',orders:JSON.stringify(selected)});
+    poConverted=res.converted||[];
+    renderResultTable(poConverted);
+    document.getElementById('po-result-count').textContent=poConverted.length+'건';
+    document.getElementById('po-result-card').style.display='';
+    const noMatch=res.noMatchProducts||[];
+    if(noMatch.length){
+      document.getElementById('po-nomatch-list').innerHTML=noMatch.map(n=>`<span class="po-nomatch-item">${n}</span>`).join('');
+      document.getElementById('po-nomatch-card').style.display='';
+    }else{document.getElementById('po-nomatch-card').style.display='none';}
+  }catch(e){alert('변환 실패: '+e.message);}
+}
+
+function renderResultTable(rows){
+  const tbody=document.getElementById('po-result-tbody');
+  tbody.innerHTML='';
+  rows.forEach(r=>{
+    const warn=(!r.engName||!r.hsCode)?' style="background:#fff8e1;"':'';
+    tbody.innerHTML+=`<tr${warn}>
+      <td>${r.no}</td><td>${r.receiver}</td><td>${r.phone1}</td><td>${r.zipCode}</td>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;" title="${r.address}">${r.address}</td>
+      <td>${r.personalNo}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${r.engName}">${r.engName||'⚠️ 미입력'}</td>
+      <td>${r.hsCode||'⚠️'}</td><td>${r.exportPrice||'⚠️'}</td><td>${r.qty}</td><td>${r.totalPrice||''}</td>
+    </tr>`;
+  });
+}
+
+function downloadACI(){
+  if(!poConverted.length){alert('변환 데이터가 없습니다.');return;}
+  const headers=['No','마스터번호','하우스번호','송하인','송하인전화번호','송하인주소',
+    '주문번호','받는사람(한글)','받는사람휴대폰번호','받는사람전화번호','우편번호',
+    '받는사람주소','받는사람상세주소','주민등록번호/개인통관고유부호','택배사요청메모',
+    '사업자통관여부','목록통관구분','실무게','박스수량','URL','Customs registered No',
+    'HS CODE','영문상품명','브랜드','해외단가','상품개수','주문번호(세관신고용)'];
+  const rows=poConverted.map(r=>[
+    r.no,'','',r.sender,r.senderTel,r.senderAddr,
+    r.orderNo,r.receiver,r.phone1,r.phone2,r.zipCode,
+    r.address,r.addrDetail,r.personalNo,r.memo,
+    r.customsType,r.listingType,r.weight,r.boxQty,r.url,'',
+    r.hsCode,r.engName,r.brand,r.exportPrice,r.qty,r.totalPrice
+  ]);
+  const csv=[headers,...rows].map(row=>row.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`ACI_발주서_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.csv`;
+  a.click();
+}
+
+async function fetchExchangeRate(){
+  const btn=event.target; btn.textContent='⏳'; btn.disabled=true;
+  try{
+    const res=await gasCall({action:'getExchangeRate'});
+    if(res.status==='ok'){
+      document.getElementById('db-exchange-rate').value=res.rate;
+      calcKrw();
+      showDBMsg(`✅ 환율: 1 EUR = ${res.rate.toLocaleString()} KRW (${res.date})`,'success');
+    }else throw new Error(res.message);
+  }catch(e){alert('환율 조회 실패: '+e.message);}
+  finally{btn.textContent='📡 조회';btn.disabled=false;}
+}
+
+function calcKrw(){
+  const eur=parseFloat(document.getElementById('db-price-eur').value)||0;
+  const krw=parseFloat(document.getElementById('db-price-krw').value)||0;
+  const rate=parseFloat(document.getElementById('db-exchange-rate').value)||0;
+  let calc=eur>0&&rate>0?Math.round(eur*rate):krw;
+  document.getElementById('db-price-krw-calc').value=calc||'';
+}
+
+async function aiGenEngName(){
+  const korName=document.getElementById('db-kor-name').value.trim();
+  if(!korName){alert('한글상품명을 먼저 입력하세요.');return;}
+  const btn=event.target; btn.textContent='⏳'; btn.disabled=true;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:200,
+        messages:[{role:'user',content:`다음 한국어 상품명을 ACI 세관 신고용 영문 상품명으로 변환해줘. 브랜드명 없이 상품 설명만, 영어로만, 간결하게 (30자 이내).\n한글상품명: "${korName}"\n영문상품명만 답변해. 따옴표나 설명 없이.`}]})
+    });
+    const data=await res.json();
+    const eng=data.content?.[0]?.text?.trim()||'';
+    if(eng) document.getElementById('db-eng-name').value=eng;
+  }catch(e){alert('AI 생성 실패: '+e.message);}
+  finally{btn.textContent='🤖 AI';btn.disabled=false;}
+}
+
+async function aiGenHsCode(){
+  const engName=document.getElementById('db-eng-name').value.trim()||document.getElementById('db-kor-name').value.trim();
+  if(!engName){alert('상품명을 먼저 입력하세요.');return;}
+  const btn=event.target; btn.textContent='⏳'; btn.disabled=true;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:100,
+        messages:[{role:'user',content:`다음 상품의 HS CODE 6자리를 알려줘. 숫자 6자리만 답변. 설명 없이.\n상품명: "${engName}"`}]})
+    });
+    const data=await res.json();
+    const code=(data.content?.[0]?.text?.trim()||'').replace(/\D/g,'').slice(0,6);
+    if(code) document.getElementById('db-hs-code').value=code;
+  }catch(e){alert('AI 생성 실패: '+e.message);}
+  finally{btn.textContent='🤖 AI';btn.disabled=false;}
+}
+
+async function saveProductDB(){
+  const korName=document.getElementById('db-kor-name').value.trim();
+  if(!korName){alert('한글상품명은 필수입니다.');return;}
+  try{
+    const res=await gasCall({
+      action:'saveProduct', korName,
+      brand:document.getElementById('db-brand').value.trim(),
+      engName:document.getElementById('db-eng-name').value.trim(),
+      altEngName:document.getElementById('db-alt-eng-name').value.trim(),
+      hsCode:document.getElementById('db-hs-code').value.trim(),
+      priceEur:document.getElementById('db-price-eur').value,
+      priceKrw:document.getElementById('db-price-krw').value,
+      exchangeRate:document.getElementById('db-exchange-rate').value,
+      exportPriceUsd:document.getElementById('db-export-usd').value
+    });
+    showDBMsg(res.status==='updated'?'✅ 업데이트 완료!':'✅ 신규 등록 완료!','success');
+    loadProductList();
+  }catch(e){showDBMsg('❌ 저장 실패: '+e.message,'error');}
+}
+
+function clearDBForm(){
+  ['db-kor-name','db-brand','db-eng-name','db-alt-eng-name','db-hs-code',
+   'db-price-eur','db-price-krw','db-exchange-rate','db-price-krw-calc','db-export-usd']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('db-save-msg').style.display='none';
+}
+
+function showDBMsg(msg,type){
+  const el=document.getElementById('db-save-msg');
+  el.className='po-msg '+type; el.textContent=msg; el.style.display='';
+  setTimeout(()=>el.style.display='none',3000);
+}
+
+async function loadProductList(){
+  try{
+    const res=await gasCall({action:'getProductList'});
+    dbProducts=res.list||[];
+    renderProductList(dbProducts);
+  }catch(e){console.warn('ProductDB 로드 실패:',e);}
+}
+
+function renderProductList(list){
+  const tbody=document.getElementById('db-list-tbody');
+  tbody.innerHTML='';
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px;">등록된 상품이 없습니다</td></tr>';return;}
+  list.forEach(p=>{
+    tbody.innerHTML+=`<tr onclick="fillDBForm(${JSON.stringify(p).replace(/'/g,"\\'")})" style="cursor:pointer;">
+      <td title="${p.korName}">${(p.korName||'').slice(0,18)}</td>
+      <td>${p.brand||'-'}</td>
+      <td title="${p.engName}">${(p.altEngName||p.engName||'').slice(0,18)}</td>
+      <td>${p.hsCode||'-'}</td>
+      <td>${p.exportPriceUsd||'-'}</td>
+      <td>${p.priceKrwCalc?Number(p.priceKrwCalc).toLocaleString()+'원':'-'}</td>
+    </tr>`;
+  });
+}
+
+function filterProductList(){
+  const q=document.getElementById('db-search').value.toLowerCase();
+  renderProductList(dbProducts.filter(p=>
+    (p.korName||'').toLowerCase().includes(q)||
+    (p.engName||'').toLowerCase().includes(q)||
+    (p.brand||'').toLowerCase().includes(q)
+  ));
+}
+
+function fillDBForm(p){
+  document.getElementById('db-kor-name').value=p.korName||'';
+  document.getElementById('db-brand').value=p.brand||'';
+  document.getElementById('db-eng-name').value=p.engName||'';
+  document.getElementById('db-alt-eng-name').value=p.altEngName||'';
+  document.getElementById('db-hs-code').value=p.hsCode||'';
+  document.getElementById('db-price-eur').value=p.priceEur||'';
+  document.getElementById('db-price-krw').value=p.priceKrw||'';
+  document.getElementById('db-exchange-rate').value=p.exchangeRate||'';
+  document.getElementById('db-price-krw-calc').value=p.priceKrwCalc||'';
+  document.getElementById('db-export-usd').value=p.exportPriceUsd||'';
+}
+
+async function gasCall(params){
+  const qs=new URLSearchParams(params).toString();
+  const res=await fetch(`${PO_GAS_URL}?${qs}`);
+  const data=await res.json();
+  if(data.status==='error') throw new Error(data.message||'GAS error');
+  return data;
+}
 </script>
+
+  <div id="tab-purchase-order" class="tab-content" style="display:none;">
+  <div class="po-container">
+    <div class="po-header">
+      <h2>📦 발주서 변환 시스템</h2>
+      <p class="po-subtitle">사방넷 주문 → ACI 항공업체 양식 자동 변환</p>
+    </div>
+    <div class="po-layout">
+      <!-- 좌측: 주문조회 -->
+      <div class="po-left">
+        <div class="po-card">
+          <span class="po-card-title">🔍 사방넷 주문 조회</span>
+          <div class="po-date-row">
+            <div class="po-field"><label>시작일</label><input type="date" id="po-start-date"/></div>
+            <div class="po-field"><label>종료일</label><input type="date" id="po-end-date"/></div>
+            <div class="po-field"><label>주문상태</label>
+              <select id="po-order-status">
+                <option value="1">신규주문</option>
+                <option value="2">주문확인</option>
+                <option value="4">배송준비</option>
+              </select>
+            </div>
+            <button class="po-btn-primary" onclick="fetchSabangOrders()"><span id="po-fetch-icon">🔄</span> 주문 불러오기</button>
+          </div>
+        </div>
+
+        <div class="po-card" id="po-orders-card" style="display:none;">
+          <div class="po-card-title-row">
+            <span class="po-card-title">📋 주문 목록</span>
+            <div class="po-card-actions">
+              <span id="po-order-count" class="po-badge">0건</span>
+              <button class="po-btn-sm" onclick="selectAllOrders()">전체선택</button>
+              <button class="po-btn-primary" onclick="convertSelected()">✈️ 선택 변환</button>
+            </div>
+          </div>
+          <div class="po-table-wrap">
+            <table class="po-table" id="po-orders-table">
+              <thead><tr>
+                <th><input type="checkbox" id="po-check-all" onchange="toggleAllOrders(this)"/></th>
+                <th>주문번호</th><th>주문일</th><th>수취인</th>
+                <th>수집상품명</th><th>상품명</th><th>옵션</th><th>수량</th><th>DB매핑</th>
+              </tr></thead>
+              <tbody id="po-orders-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="po-card po-card-warn" id="po-nomatch-card" style="display:none;">
+          <span class="po-card-title">⚠️ DB 미등록 상품</span>
+          <div id="po-nomatch-list"></div>
+          <p class="po-hint">ProductDB에 등록 후 다시 변환하거나, 변환 결과에서 직접 수정하세요.</p>
+        </div>
+
+        <div class="po-card" id="po-result-card" style="display:none;">
+          <div class="po-card-title-row">
+            <span class="po-card-title">✅ 변환 결과</span>
+            <div class="po-card-actions">
+              <span id="po-result-count" class="po-badge po-badge-green">0건</span>
+              <button class="po-btn-success" onclick="downloadACI()">⬇️ ACI 엑셀 다운로드</button>
+            </div>
+          </div>
+          <div class="po-table-wrap">
+            <table class="po-table po-table-sm" id="po-result-table">
+              <thead><tr>
+                <th>No</th><th>수취인</th><th>전화번호</th><th>우편번호</th>
+                <th>주소</th><th>개인통관부호</th><th>영문상품명</th>
+                <th>HS CODE</th><th>단가(USD)</th><th>수량</th><th>합계</th>
+              </tr></thead>
+              <tbody id="po-result-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 우측: ProductDB -->
+      <div class="po-right">
+        <div class="po-card">
+          <span class="po-card-title">🗄️ ProductDB 등록/수정</span>
+          <div class="po-field"><label>한글상품명 <span class="po-required">*</span></label><input type="text" id="db-kor-name" placeholder="사방넷 상품명+옵션"/></div>
+          <div class="po-field"><label>브랜드</label><input type="text" id="db-brand" placeholder="예: Moncler, DeLonghi"/></div>
+          <div class="po-field"><label>영문상품명 <span class="po-required">*</span></label>
+            <div class="po-ai-row"><input type="text" id="db-eng-name" placeholder="영문 상품명"/><button class="po-btn-ai" onclick="aiGenEngName()">🤖 AI</button></div>
+          </div>
+          <div class="po-field"><label>대체상품명 (통관용 EN)</label><input type="text" id="db-alt-eng-name" placeholder="브랜드 민감 시 대체 영문명"/></div>
+          <div class="po-field"><label>HS CODE <span class="po-required">*</span></label>
+            <div class="po-ai-row"><input type="text" id="db-hs-code" placeholder="6자리" maxlength="10"/><button class="po-btn-ai" onclick="aiGenHsCode()">🤖 AI</button></div>
+          </div>
+          <div class="po-divider">💰 구매가 (정산용)</div>
+          <div class="po-two-col">
+            <div class="po-field"><label>구매가 EUR</label><input type="number" id="db-price-eur" placeholder="0.00" step="0.01" oninput="calcKrw()"/></div>
+            <div class="po-field"><label>구매가 KRW</label><input type="number" id="db-price-krw" placeholder="0" oninput="calcKrw()"/></div>
+          </div>
+          <div class="po-field"><label>EUR/KRW 환율</label>
+            <div class="po-ai-row"><input type="number" id="db-exchange-rate" placeholder="자동조회" step="1" oninput="calcKrw()"/><button class="po-btn-ai" onclick="fetchExchangeRate()">📡 조회</button></div>
+          </div>
+          <div class="po-field"><label>구매가 KRW 환산 (자동)</label><input type="number" id="db-price-krw-calc" readonly style="background:#f5f5f5;"/></div>
+          <div class="po-divider">✈️ 수출 단가 (ACI 신고용)</div>
+          <div class="po-field"><label>수출단가 USD <span class="po-required">*</span></label><input type="number" id="db-export-usd" placeholder="0.00" step="0.01"/></div>
+          <div class="po-btn-row">
+            <button class="po-btn-secondary" onclick="clearDBForm()">🗑️ 초기화</button>
+            <button class="po-btn-success" onclick="saveProductDB()">💾 저장</button>
+          </div>
+          <div id="db-save-msg" class="po-msg" style="display:none;"></div>
+        </div>
+
+        <div class="po-card">
+          <div class="po-card-title-row">
+            <span class="po-card-title">📚 등록된 상품 목록</span>
+            <button class="po-btn-sm" onclick="loadProductList()">🔄 새로고침</button>
+          </div>
+          <input type="text" id="db-search" placeholder="🔍 상품명 검색..." class="po-search" oninput="filterProductList()"/>
+          <div class="po-table-wrap" style="max-height:320px;">
+            <table class="po-table po-table-sm" id="db-list-table">
+              <thead><tr><th>한글명</th><th>브랜드</th><th>영문명</th><th>HS</th><th>수출USD</th><th>구매KRW</th></tr></thead>
+              <tbody id="db-list-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
