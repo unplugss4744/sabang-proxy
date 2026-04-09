@@ -12,7 +12,17 @@ exports.handler = async (event) => {
     };
 
     if (event.httpMethod === 'OPTIONS') return { statusCode:200, headers, body:'' };
-
+    // GET 요청 → 저장된 XML 반환 (사방넷용)
+    if (event.httpMethod === 'GET' && event.queryStringParameters?.xml === '1') {
+    // GAS에서 저장된 XML 가져오기
+      const xmlRes = await fetch(GAS_URL + '?xml=1&type=order');
+      const xmlText = await xmlRes.text();
+      return {
+      statusCode: 200,
+      headers: { ...headers, 'Content-Type': 'text/xml; charset=EUC-KR' },
+    body: xmlText
+    };
+}
     if (event.httpMethod === 'POST') {
           try {
                   const body = JSON.parse(event.body);
