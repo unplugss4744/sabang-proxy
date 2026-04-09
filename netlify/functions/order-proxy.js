@@ -44,7 +44,7 @@ exports.handler = async (event) => {
                       body: JSON.stringify({ secret:'0426', action:'storeOrderXml', xml })
             });
 
-            const xmlUrl = GAS_URL + '?xml=1&type=order';
+            const xmlUrl = 'https://dales-london.netlify.app/.netlify/functions/order-proxy?xml=1&type=order';
                   const sabangUrl = 'https://sbadmin13.sabangnet.co.kr/RTL_API/xml_order_info.html?xml_url=' + encodeURIComponent(xmlUrl);
 
             const response = await fetch(sabangUrl);
