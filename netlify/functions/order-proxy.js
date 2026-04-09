@@ -32,7 +32,7 @@ exports.handler = async (event) => {
         '  <ORD_ST_DATE><![CDATA[' + startDate + ']]></ORD_ST_DATE>\n' +
         '  <ORD_ED_DATE><![CDATA[' + endDate + ']]></ORD_ED_DATE>\n' +
         '  <ORD_FIELD><![CDATA[' + fields + ']]></ORD_FIELD>\n' +
-        '  <ORDER_STATUS><![CDATA[\n' + status + ']]></ORDER_STATUS>\n' +
+        '  (status ? '  <ORDER_STATUS><![CDATA[\n' + status + ']]></ORDER_STATUS>\n' : '') +
         '  <LANG><![CDATA[UTF-8]]></LANG>\n' +
         '</DATA>\n</SABANG_ORDER_LIST>';
 
