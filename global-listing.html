@@ -1034,6 +1034,7 @@ function fillDBForm(p){
 }
 
 async function gasCall(params){
+  params.secret = '0426'; 
   const body = encodeURIComponent(JSON.stringify(params));
   const res = await fetch(`${PO_GAS_URL}?d=${body}`);
   const data = await res.json();
