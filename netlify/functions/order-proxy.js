@@ -49,7 +49,7 @@ exports.handler = async (event) => {
 
       const response = await fetch(sabangUrl);
       const resultBuffer = Buffer.from(await response.arrayBuffer());
-      const resultText = iconv.decode(resultBuffer, 'EUC-KR');
+      const resultText = resultBuffer.toString('utf-8');
 
       const orders = parseOrderXml(resultText);
 
