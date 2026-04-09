@@ -817,8 +817,8 @@ let poOrders=[], poConverted=[], dbProducts=[];
 (function initDates(){
   const today=new Date(), week=new Date();
   week.setDate(today.getDate()-7);
-  document.getElementById('po-end-date').value=today.toISOString().slice(0,10);
-  document.getElementById('po-start-date').value=week.toISOString().slice(0,10);
+  const ed=document.getElementById('po-end-date'); if(ed) ed.value=today.toISOString().slice(0,10);
+  const sd=document.getElementById('po-start-date'); if(sd) sd.value=week.toISOString().slice(0,10);
   loadProductList();
 })();
 
