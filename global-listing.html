@@ -631,6 +631,31 @@ function calcPrices(krw) {
 }
 
 // ── 메인 제출 ─────────────────────────────────────────────
+function buildDetailHtml(productName, country) {
+  const isMoncler = productName.includes('몽클레어') || productName.toLowerCase().includes('moncler');
+  const isKorea = country === '한국';
+  if (isKorea) return ''; // 국내 구매 상품은 소스 없음
+  if (isMoncler) {
+    return `<div align="center">
+  <img src="https://gi.esmplus.com/daleslondo/23fwmonlcer/000_mon_top1.jpg">
+  <br>
+  <img src="https://gi.esmplus.com/daleslondo/23fwmonlcer/001_top.png">
+</div>
+{{AI_CONTENT}}
+<div align="center">
+  <img src="https://gi.esmplus.com/daleslondo/23fwmonlcer/1_Moncler_size-info.jpg">
+  <br>
+  <img src="https://gi.esmplus.com/daleslondo/23fwmonlcer/2_process-001.jpg">
+  <br>
+  <img src="https://gi.esmplus.com/daleslondo/23fwmonlcer/3_genius-001.jpg">
+  <br>
+  <img src="https://gi.esmplus.com/daleslondo/23fwmonlcer/4_code-001.jpg">
+</div>`;
+  }
+  return `<img src='https://gi.esmplus.com/daleslondo/fly-bottom-spec.jpg' />`;
+}
+
+  
 async function handleSubmit() {
   const productName  = document.getElementById("productName").value.trim();
   const purchasePrice= parseFloat(document.getElementById("purchasePrice").value);
@@ -664,7 +689,7 @@ async function handleSubmit() {
       카테고리: "", 구매국가: selectedCountry, 구매통화: currency,
       환율: rateLabel, 구매가_원화: purchaseKRW,
       네이버_판매가: prices["네이버"], 롯데온_판매가: prices["롯데온"],
-      상품설명: "", 키워드: "",
+      상품설명: buildDetailHtml(productName, selectedCountry), 키워드: "",
       이미지URL1: imageUrls[0]||"", 이미지URL2: imageUrls[1]||"", 이미지URL3: imageUrls[2]||"",
     };
     if (sheetsUrl) await sendToSheets(sheetsUrl, secretKey, rowData);
