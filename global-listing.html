@@ -619,8 +619,19 @@ function initProgress(count) {
 // ── 저장 ──────────────────────────────────────────────────
 async function sendToSheets(sheetsUrl, secretKey, rowData) {
   if (!sheetsUrl) throw new Error("⚙ 설정에서 Google Sheets URL을 입력해주세요.");
-  const payload = encodeURIComponent(JSON.stringify({ secret: secretKey, ...rowData }));
-  await fetch(sheetsUrl + "?d=" + payload, { method: "GET", mode: "no-cors" });
+  const body = JSON.stringify({ secret: secretKey, ...rowData });
+  const payload = encodeURIComponent(body);
+  // URL 길이 초과 시 POST 방식으로 전환
+  if ((sheetsUrl + "?d=" + payload).length > 8000) {
+    await fetch(sheetsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'd=' + payload,
+      mode: 'no-cors'
+    });
+  } else {
+    await fetch(sheetsUrl + "?d=" + payload, { method: "GET", mode: "no-cors" });
+  }
 }
 
 // ── 가격 계산 ─────────────────────────────────────────────
