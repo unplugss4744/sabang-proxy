@@ -877,10 +877,10 @@ function renderOrdersTable(orders){
     tbody.innerHTML+=`<tr>
       <td><input type="checkbox" class="po-order-check" value="${i}" checked/></td>
       <td>${o.orderNo}</td><td>${(o.orderDate||'').slice(0,8)}</td><td>${o.receiver}</td>
-      <td>${o.collectName||'-'}</td>
-      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.productName}">${o.productName}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.collectName||o.productName}">${o.collectName||o.productName||'-'}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.productName}">${o.productName}</td>
-      <td>${o.optionName||'-'}</td><td>${o.qty}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.optionName||''}">${o.optionName||'-'}</td>
+      <td>${o.qty}</td>
       <td class="${matched?'mapped':'unmapped'}">${matched?'✅ 매핑됨':'❌ 미등록'}</td>
     </tr>`;
   });
@@ -899,6 +899,11 @@ async function convertSelected(){
     renderResultTable(poConverted);
     document.getElementById('po-result-count').textContent=poConverted.length+'건';
     document.getElementById('po-result-card').style.display='';
+    // 변환된 주문 목록에서 제거
+    const convertedOrderNos = new Set(poConverted.map(r=>r.orderNo));
+    poOrders = poOrders.filter(o=>!convertedOrderNos.has(o.orderNo));
+    renderOrdersTable(poOrders);
+    document.getElementById('po-order-count').textContent=poOrders.length+'건';
     const noMatch=res.noMatchProducts||[];
     if(noMatch.length){
       document.getElementById('po-nomatch-list').innerHTML=noMatch.map(n=>`<span class="po-nomatch-item">${n}</span>`).join('');
@@ -944,6 +949,9 @@ async function downloadACI(){
   XLSX.utils.book_append_sheet(wb,ws,'ACI발주서');
   XLSX.writeFile(wb,`ACI_발주서_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`);
   try{await gasCall({action:'saveOrderStatus',rows:JSON.stringify(poConverted)});}catch(e){console.warn('OrderStatus 저장 실패:',e.message);}
+  // 다운로드 후 변환결과 초기화
+  poConverted=[];
+  document.getElementById('po-result-card').style.display='none';
 }
 
 async function fetchExchangeRate(){
