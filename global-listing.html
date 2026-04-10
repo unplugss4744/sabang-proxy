@@ -1075,9 +1075,20 @@ function fillDBForm(p){
 }
 
 async function gasCall(params){
-  params.secret = '0426'; 
+  params.secret = '0426';
   const body = encodeURIComponent(JSON.stringify(params));
-  const res = await fetch(`${PO_GAS_URL}?d=${body}`);
+  const url = `${PO_GAS_URL}?d=${body}`;
+  // URL이 8000자 초과 시 POST 방식으로 전환
+  let res;
+  if(url.length > 8000){
+    res = await fetch(PO_GAS_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'd=' + body
+    });
+  } else {
+    res = await fetch(url);
+  }
   const data = await res.json();
   if(data.status==='error') throw new Error(data.message||'GAS error');
   return data;
