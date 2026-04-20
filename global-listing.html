@@ -513,6 +513,7 @@ function switchTab(tabId, btn) {
   btn.classList.add("active");
   document.getElementById("settingsDropdown").classList.remove("open");
   if (tabId === "tab2") loadProducts();
+  if (tabId === "tab3") loadOrderStatus();   // ⭐ 추가
 }
 
 // ── 설정 토글 ─────────────────────────────────────────────
@@ -991,6 +992,15 @@ async function downloadACI(){
   XLSX.writeFile(wb,`ACI_발주서_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`);
   try{await gasCall({action:'saveOrderStatus',rows:JSON.stringify(poConverted)});}catch(e){console.warn('OrderStatus 저장 실패:',e.message);}
   // 다운로드 후 변환결과 초기화
+    XLSX.writeFile(wb,`ACI_발주서_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`);
+  try{
+    await gasCall({action:'saveOrderStatus',rows:JSON.stringify(poConverted)});
+    alert('✅ ACI 다운로드 및 주문/발송 탭 저장 완료!');  // ⭐ 추가
+  }catch(e){
+    console.warn('OrderStatus 저장 실패:',e.message);
+    alert('⚠️ ACI는 다운로드됐지만 주문/발송 저장 실패: '+e.message);  // ⭐ 추가
+  }
+
   poConverted=[];
   document.getElementById('po-result-card').style.display='none';
 }
@@ -1366,7 +1376,56 @@ function applyUploadedInvoices(){
     </div>
   </div>
 </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ═══════════════ 주문/발송 탭 전역 변수 & 함수 ═══════════════
+let osData = [];
+let uploadedInvoices = [];
+
+// 택배사 코드 매핑
+const TAK_LIST = [
+  { code: '059', name: 'ACI' },
+  { code: '055', name: 'CJ대한통운' },
+  { code: '009', name: '우체국택배' }
+];
+
+function takName(code) {
+  const t = TAK_LIST.find(x => x.code === code);
+  return t ? t.name : (code || '-');
+}
+
+function takSelectHtml(idx, selectedCode) {
+  return `<select class="os-tak-sel" data-idx="${idx}" style="font-size:12px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;">
+    <option value="">선택</option>
+    ${TAK_LIST.map(t => `<option value="${t.code}" ${t.code === selectedCode ? 'selected' : ''}>${t.name}</option>`).join('')}
+  </select>`;
+}
+
+// 출고 내역 불러오기
+async function loadOrderStatus() {
+  const loading = document.getElementById('os-loading');
+  const wrap = document.getElementById('os-table-wrap');
+  const empty = document.getElementById('os-empty');
+  loading.style.display = '';
+  wrap.style.display = 'none';
+  empty.style.display = 'none';
+  try {
+    const res = await gasCall({ action: 'getOrderStatusList' });
+    osData = res.list || [];
+    loading.style.display = 'none';
+    renderOSTable();
+  } catch (e) {
+    loading.style.display = 'none';
+    empty.textContent = '불러오기 실패: ' + e.message;
+    empty.style.display = '';
+    console.error('OrderStatus 로드 실패:', e);
+  }
+}
+
+// 기존 renderOSTable 는 이미 있음 - 그대로 사용
+
+
+    
+  </script>
  
 </body>
 </html>
