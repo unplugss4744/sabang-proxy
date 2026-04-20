@@ -1125,33 +1125,25 @@ function fillDBForm(p){
 
 async function gasCall(params){
   params.secret = '0426';
-  const body = encodeURIComponent(JSON.stringify(params));
-  const url = `${PO_GAS_URL}?d=${body}`;
-  // URL이 8000자 초과 시 POST 방식으로 전환
-  let res;
-  if(url.length > 8000){
-    res = await fetch(PO_GAS_URL, {
+  const POST_ACTIONS = ['convertOrders', 'saveOrderStatus', 'registerInvoice'];
+
+  if (POST_ACTIONS.includes(params.action)) {
+    const res = await fetch(PO_GAS_URL, {
       method: 'POST',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'd=' + body
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(params),
+      redirect: 'follow'
     });
-  } else {
-    res = await fetch(url);
+    const data = await res.json();
+    if(data.status === 'error' || data.result === 'error') throw new Error(data.message || 'GAS error');
+    return data;
   }
+
+  const body = encodeURIComponent(JSON.stringify(params));
+  const res = await fetch(`${PO_GAS_URL}?d=${body}`);
   const data = await res.json();
-  if(data.status==='error') throw new Error(data.message||'GAS error');
+  if(data.status === 'error') throw new Error(data.message || 'GAS error');
   return data;
-}
-const TAK_CODES=[{code:'059',name:'ACI'},{code:'055',name:'CJ대한통운'},{code:'009',name:'우체국택배'}];
-function takName(code){const t=TAK_CODES.find(t=>t.code===code);return t?t.name:(code||'-');}
-function takSelectHtml(idx,sel){const opts=TAK_CODES.map(t=>`<option value="${t.code}"${t.code===sel?' selected':''}>${t.name}</option>`).join('');return `<select class="os-tak-sel" data-idx="${idx}" style="font-size:12px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;"><option value="">선택</option>${opts}</select>`;}
-let osData=[],uploadedInvoices=[];
-async function loadOrderStatus(){
-  const loading=document.getElementById('os-loading'),empty=document.getElementById('os-empty'),wrap=document.getElementById('os-table-wrap');
-  loading.style.display='';empty.style.display='none';wrap.style.display='none';
-  try{const res=await gasCall({action:'getOrderStatusList'});osData=res.list||[];renderOSTable();}
-  catch(e){alert('목록 조회 실패: '+e.message);}
-  finally{loading.style.display='none';}
 }
 function setOSDateFilter(range){
   const now=new Date();
