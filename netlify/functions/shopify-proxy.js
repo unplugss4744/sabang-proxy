@@ -1,237 +1,106 @@
 const axios = require('axios');
 
-function getStoresConfig() {
-  return {
-    flyeuro: {
-      domain: '261486-98.myshopify.com',
-      getToken: () => process.env.SHOPIFY_FLYEURO_TOKEN,
-      authType: 'admin_token'
-    },
-    apoeuro: {
-      domain: 'y1nnea-w1.myshopify.com',
-      clientId: process.env.SHOPIFY_APOEURO_CLIENT_ID,
-      clientSecret: process.env.SHOPIFY_APOEURO_CLIENT_SECRET,
-      locationId: '89312952544',
-      authType: 'client_credentials',
-      tokenCache: null,
-      tokenExpiry: null
-    }
-  };
-}
+const APOEURO = {
+  domain: 'y1nnea-w1.myshopify.com',
+  clientId: process.env.SHOPIFY_APOEURO_CLIENT_ID,
+  clientSecret: process.env.SHOPIFY_APOEURO_CLIENT_SECRET,
+  tokenCache: null,
+  tokenExpiry: null
+};
 
-async function getApoeuroToken(config) {
-  if (config.tokenCache && config.tokenExpiry && Date.now() < config.tokenExpiry) {
-    return config.tokenCache;
+async function getApoeuroToken() {
+  if (APOEURO.tokenCache && APOEURO.tokenExpiry && Date.now() < APOEURO.tokenExpiry) {
+    return APOEURO.tokenCache;
   }
-  if (!config.clientId || !config.clientSecret) {
-    throw new Error('APOEURO 환경변수가 설정되지 않았습니다.');
-  }
-  const response = await axios.post(
-    `https://${config.domain}/admin/oauth/access_token`,
+  const res = await axios.post(
+    `https://${APOEURO.domain}/admin/oauth/access_token`,
     {
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
+      client_id: APOEURO.clientId,
+      client_secret: APOEURO.clientSecret,
       grant_type: 'client_credentials'
-    },
-    { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
-  );
-  const token = response.data.access_token;
-  const expiresIn = response.data.expires_in || 86400;
-  config.tokenCache = token;
-  config.tokenExpiry = Date.now() + (expiresIn - 300) * 1000;
-  return token;
-}
-
-async function callShopifyAPI(store, endpoint, method = 'GET', data = null) {
-  const config = getStoresConfig()[store];
-  if (!config) throw new Error(`지원하지 않는 스토어: ${store}`);
-
-  let token;
-  if (config.authType === 'admin_token') {
-    token = config.getToken();
-    if (!token) throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
-  } else {
-    token = await getApoeuroToken(config);
-  }
-
-  try {
-    const response = await axios({
-      method,
-      url: `https://${config.domain}/admin/api/2024-01${endpoint}`,
-      headers: {
-        'X-Shopify-Access-Token': token,
-        'Content-Type': 'application/json'
-      },
-      data,
-      timeout: 30000
-    });
-    return response.data;
-  } catch (error) {
-    if (error.response) {
-      throw new Error(`Shopify API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`);
-    }
-    throw new Error(`네트워크 오류: ${error.message}`);
-  }
-}
-
-async function callShopifyGraphQL(store, query) {
-  const config = getStoresConfig()[store];
-  if (!config) throw new Error(`지원하지 않는 스토어: ${store}`);
-
-  let token;
-  if (config.authType === 'admin_token') {
-    token = config.getToken();
-    if (!token) throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
-  } else {
-    token = await getApoeuroToken(config);
-  }
-
-  const response = await axios.post(
-    `https://${config.domain}/admin/api/2024-01/graphql.json`,
-    { query },
-    {
-      headers: {
-        'X-Shopify-Access-Token': token,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
     }
   );
-
-  if (response.data.errors) {
-    throw new Error(`GraphQL 오류: ${JSON.stringify(response.data.errors)}`);
-  }
-
-  return response.data;
+  APOEURO.tokenCache = res.data.access_token;
+  APOEURO.tokenExpiry = Date.now() + (res.data.expires_in - 300) * 1000;
+  return APOEURO.tokenCache;
 }
 
-const actionHandlers = {
+// 주문목록 + PCCC를 한 번에 가공해서 반환
+async function getOrdersWithPCCC(limit) {
+  const token = await getApoeuroToken();
 
-  'orders/list': async (store, params) => {
-    const { status = 'any', limit = 50, created_at_min, created_at_max } = params;
-    const queryParams = new URLSearchParams({ status, limit: Math.min(limit, 250) });
-    if (created_at_min) queryParams.append('created_at_min', created_at_min);
-    if (created_at_max) queryParams.append('created_at_max', created_at_max);
-    return await callShopifyAPI(store, `/orders.json?${queryParams.toString()}`);
-  },
+  // 1. 주문 목록 (REST)
+  const ordersRes = await axios.get(
+    `https://${APOEURO.domain}/admin/api/2024-01/orders.json?status=any&limit=${limit}`,
+    { headers: { 'X-Shopify-Access-Token': token } }
+  );
+  const orders = ordersRes.data.orders || [];
+  if (orders.length === 0) return [];
 
-  'orders/detail': async (store, params) => {
-    const { orderId } = params;
-    if (!orderId) throw new Error('orderId는 필수 파라미터입니다');
-    return await callShopifyAPI(store, `/orders/${orderId}.json`);
-  },
-
-  'orders/fulfill': async (store, params) => {
-    const { orderId, trackingNumber, trackingCompany = 'DHL', notifyCustomer = true } = params;
-    if (!orderId || !trackingNumber) throw new Error('orderId와 trackingNumber는 필수 파라미터입니다');
-
-    const fulfillmentOrders = await callShopifyAPI(store, `/orders/${orderId}/fulfillment_orders.json`);
-    if (!fulfillmentOrders.fulfillment_orders || fulfillmentOrders.fulfillment_orders.length === 0) {
-      throw new Error('Fulfillment order를 찾을 수 없습니다');
-    }
-
-    const fulfillmentOrderId = fulfillmentOrders.fulfillment_orders[0].id;
-    const lineItems = fulfillmentOrders.fulfillment_orders[0].line_items.map(item => ({
-      id: item.id,
-      quantity: item.quantity
-    }));
-
-    return await callShopifyAPI(store, '/fulfillments.json', 'POST', {
-      fulfillment: {
-        line_items_by_fulfillment_order: [{
-          fulfillment_order_id: fulfillmentOrderId,
-          fulfillment_order_line_items: lineItems
-        }],
-        tracking_info: {
-          number: trackingNumber,
-          company: trackingCompany,
-          url: `https://www.dhl.com/en/express/tracking.html?AWB=${trackingNumber}`
-        },
-        notify_customer: notifyCustomer
-      }
-    });
-  },
-
-  // PCCC 조회 - GraphQL localizationExtensions 사용
-  'orders/pccc': async (store, params) => {
-    const { orderId } = params;
-    if (!orderId) throw new Error('orderId는 필수 파라미터입니다');
-
-    const result = await callShopifyGraphQL(store, `{
-      order(id: "gid://shopify/Order/${orderId}") {
-        name
-        localizationExtensions(first: 10) {
-          nodes {
-            purpose
-            countryCode
-            title
-            value
+  // 2. PCCC 일괄 조회 (GraphQL)
+  const gids = orders.map(o => `"gid://shopify/Order/${o.id}"`).join(',');
+  const gqlRes = await axios.post(
+    `https://${APOEURO.domain}/admin/api/2024-01/graphql.json`,
+    { query: `{
+      nodes(ids: [${gids}]) {
+        ... on Order {
+          legacyResourceId
+          localizationExtensions(first: 5) {
+            nodes { countryCode purpose value }
           }
         }
       }
-    }`);
+    }` },
+    { headers: { 'X-Shopify-Access-Token': token } }
+  );
 
-    const extensions = result.data.order.localizationExtensions.nodes;
-    const pcccNode = extensions.find(n => n.countryCode === 'KR' && n.purpose === 'SHIPPING');
+  const pcccMap = {};
+  (gqlRes.data.data.nodes || []).forEach(n => {
+    if (!n) return;
+    const node = n.localizationExtensions.nodes.find(
+      x => x.countryCode === 'KR' && x.purpose === 'SHIPPING'
+    );
+    pcccMap[n.legacyResourceId] = node ? node.value : '';
+  });
 
+  // 3. 시트에 필요한 필드만 가공
+  return orders.map(o => {
+    const a = o.shipping_address || {};
     return {
-      orderId,
-      pccc: pcccNode ? pcccNode.value : null,
-      found: !!pcccNode
+      order_number:     o.order_number,
+      id:               String(o.id),
+      name:             a.name     || '',
+      product:          o.line_items.map(i => i.title + ' x' + i.quantity).join(', '),
+      total_price:      o.total_price,
+      created_at:       o.created_at,
+      financial_status: o.financial_status,
+      email:            o.email    || '',
+      phone:            a.phone    || '',
+      zip:              a.zip      || '',
+      city:             a.city     || '',
+      address1:         a.address1 || '',
+      address2:         a.address2 || '',
+      pccc:             pcccMap[String(o.id)] || ''
     };
-  }
+  });
+}
 
-};
-
-exports.handler = async (event, context) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json'
-  };
+exports.handler = async (event) => {
+  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'POST 메서드만 허용됩니다' }) };
-  }
 
   try {
-    const { store, action, params = {} } = JSON.parse(event.body || '{}');
+    const { action, params = {} } = JSON.parse(event.body || '{}');
 
-    if (!store || !action) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'store와 action은 필수 파라미터입니다' })
-      };
+    if (action === 'orders_with_pccc') {
+      const data = await getOrdersWithPCCC(params.limit || 50);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, data }) };
     }
 
-    const handler = actionHandlers[action];
-    if (!handler) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          error: `지원하지 않는 액션: ${action}`,
-          availableActions: Object.keys(actionHandlers)
-        })
-      };
-    }
+    return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: '지원하지 않는 액션' }) };
 
-    const result = await handler(store, params);
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true, store, action, data: result })
-    };
-
-  } catch (error) {
-    console.error('Shopify Proxy Error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ success: false, error: error.message, timestamp: new Date().toISOString() })
-    };
+  } catch (err) {
+    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message }) };
   }
 };
