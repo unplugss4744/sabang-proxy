@@ -110,55 +110,6 @@ async function callShopifyAPI(store, endpoint, method = 'GET', data = null) {
 }
 
 // ============================================
-// GraphQL 호출 헬퍼
-// ============================================
-async function callShopifyGraphQL(store, query) {
-  const STORES_CONFIG = getStoresConfig();
-  const config = STORES_CONFIG[store];
-  
-  if (!config) {
-    throw new Error(`지원하지 않는 스토어: ${store}`);
-  }
-
-  let token;
-  if (config.authType === 'admin_token') {
-    token = config.getToken();
-    if (!token) {
-      throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
-    }
-  } else if (config.authType === 'client_credentials') {
-    token = await getApoeuroToken(config);
-  }
-
-  try {
-    const response = await axios({
-      method: 'POST',
-      url: `https://${config.domain}/admin/api/2024-01/graphql.json`,
-      headers: {
-        'X-Shopify-Access-Token': token,
-        'Content-Type': 'application/json'
-      },
-      data: { query },
-      timeout: 30000
-    });
-
-    if (response.data.errors) {
-      throw new Error(`GraphQL 오류: ${JSON.stringify(response.data.errors)}`);
-    }
-
-    return response.data;
-
-  } catch (error) {
-    if (error.response) {
-      throw new Error(
-        `GraphQL API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`
-      );
-    }
-    throw new Error(`네트워크 오류: ${error.message}`);
-  }
-}
-
-// ============================================
 // 액션 핸들러
 // ============================================
 const actionHandlers = {
@@ -242,147 +193,53 @@ const actionHandlers = {
     );
   },
 
-  // PCCC 조회 (GraphQL - 전체)
-  'order_pccc': async (store, params) => {
-    const { orderId } = params;
-    
-    if (!orderId) {
-      throw new Error('orderId는 필수 파라미터입니다');
-    }
-
-    const query = `{
-      order(id: "gid://shopify/Order/${orderId}") {
-        id
-        name
-        legacyResourceId
-        customAttributes {
-          key
-          value
-        }
-        shippingAddress {
-          address1
-          address2
-          city
-          zip
-          phone
-        }
-        note
-        tags
-      }
-    }`;
-
-    return await callShopifyGraphQL(store, query);
-  },
-
-  // 주문 PCCC 일괄 조회
-  'orders_with_pccc': async (store, params) => {
-    const { orderIds } = params;
-    
-    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
-      throw new Error('orderIds 배열은 필수 파라미터입니다');
-    }
-
-    const orderIdsGql = orderIds.slice(0, 100).map(id => `"gid://shopify/Order/${id}"`).join(',');
-    
-    const query = `{
-      nodes(ids: [${orderIdsGql}]) {
-        ... on Order {
-          id
-          legacyResourceId
-          name
-          customAttributes {
-            key
-            value
-          }
-        }
-      }
-    }`;
-
-    return await callShopifyGraphQL(store, query);
-  },
-
-  // PCCC만 추출 (경량화)
-  'get_pccc_only': async (store, params) => {
+  // PCCC 필드 찾기 (디버그)
+  'find_pccc_field': async (store, params) => {
     const { orderId } = params;
     if (!orderId) throw new Error('orderId는 필수 파라미터입니다');
 
-    const STORES_CONFIG = getStoresConfig();
-    const config = STORES_CONFIG[store];
+    const response = await callShopifyAPI(store, `/orders/${orderId}.json`);
+    const order = response.order;
     
-    if (!config) {
-      throw new Error(`지원하지 않는 스토어: ${store}`);
-    }
-
-    let token;
-    if (config.authType === 'admin_token') {
-      token = config.getToken();
-      if (!token) {
-        throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
-      }
-    } else if (config.authType === 'client_credentials') {
-      token = await getApoeuroToken(config);
-    }
-
-    const query = `{
-      order(id: "gid://shopify/Order/${orderId}") {
-        customAttributes {
-          key
-          value
-        }
-        note
-      }
-    }`;
-
-    try {
-      const response = await axios.post(
-        `https://${config.domain}/admin/api/2024-01/graphql.json`,
-        { query },
-        {
-          headers: {
-            'X-Shopify-Access-Token': token,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-
-      if (response.data.errors) {
-        throw new Error(`GraphQL 오류: ${JSON.stringify(response.data.errors)}`);
-      }
-
-      const order = response.data.data.order;
-      let pccc = '';
-      
-      // customAttributes에서 찾기
-      if (order.customAttributes) {
-        const pcccAttr = order.customAttributes.find(attr => 
-          attr.key.toLowerCase().includes('pccc') || 
-          attr.key.toLowerCase().includes('customs') ||
-          attr.key.toLowerCase().includes('personal')
-        );
-        if (pcccAttr) pccc = pcccAttr.value;
-      }
-      
-      // note에서 찾기
-      if (!pccc && order.note) {
-        const match = order.note.match(/P\d{12,13}/);
-        if (match) pccc = match[0];
-      }
-      
+    // PCCC 패턴 (P + 12-13자리 숫자)
+    const pcccPattern = /P\d{12,13}/g;
+    const fullJson = JSON.stringify(order);
+    const matches = fullJson.match(pcccPattern);
+    
+    if (!matches || matches.length === 0) {
       return {
-        orderId: orderId,
-        pccc: pccc || null,
-        found: !!pccc
+        found: false,
+        message: 'PCCC를 찾을 수 없습니다',
+        checkedFields: {
+          note: order.note,
+          note_attributes: order.note_attributes,
+          customer_note: order.customer?.note,
+          tags: order.tags
+        }
       };
-
-    } catch (error) {
-      if (error.response) {
-        throw new Error(
-          `GraphQL API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`
-        );
-      }
-      throw new Error(`네트워크 오류: ${error.message}`);
     }
+    
+    const pccc = matches[0];
+    const pcccIndex = fullJson.indexOf(pccc);
+    
+    // PCCC 주변 컨텍스트
+    const contextStart = Math.max(0, pcccIndex - 300);
+    const contextEnd = Math.min(fullJson.length, pcccIndex + 100);
+    const context = fullJson.substring(contextStart, contextEnd);
+    
+    return {
+      found: true,
+      pccc: pccc,
+      allMatches: matches,
+      context: context,
+      fields: {
+        note: order.note,
+        note_attributes: order.note_attributes,
+        shipping_address: order.shipping_address,
+        customer_note: order.customer?.note,
+        tags: order.tags
+      }
+    };
   }
 };
 
@@ -462,7 +319,3 @@ exports.handler = async (event, context) => {
     };
   }
 };
-const actionHandlers = {
-  // ... 기존 액션들 ...
-
-  find_pccc_field
