@@ -4,6 +4,7 @@
   "description": "Sabangnet Order Proxy for GAS",
   "dependencies": {
     "node-fetch": "^2.7.0",
-    "axios": "^1.7.9"
+    "axios": "^1.7.9",
+    "iconv-lite": "^0.6.3"
   }
 }
