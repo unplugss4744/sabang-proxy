@@ -67,8 +67,13 @@ async function getOrdersWithPCCC(limit) {
   return orders.map(o => {
     const a = o.shipping_address || {};
     
-    // +82 10-xxxx → 010-xxxx 변환
-    const cleanPhone = (a.phone || '').replace(/^\+82\s*/, '0').replace(/\s+/g, '');
+    // 전화번호 정제: "+82 10-4628-0164" → "010-4628-0164"
+    let phone = (a.phone || '').toString();
+    phone = phone.replace(/^\+?\s*82[-\s]*/, '0');  // +82 또는 82 prefix 제거 후 0 추가
+    phone = phone.replace(/\s+/g, '');               // 모든 공백 제거
+    
+    // 시/도 + 구/군/시 합치기
+    const cityFull = [a.province, a.city].filter(Boolean).join(' ');
     
     return {
       order_number:     o.order_number,
@@ -79,9 +84,9 @@ async function getOrdersWithPCCC(limit) {
       created_at:       o.created_at,
       financial_status: o.financial_status,
       email:            o.email    || '',
-      phone:            cleanPhone,
+      phone:            phone,
       zip:              a.zip      || '',
-      city:             [a.province, a.city].filter(Boolean).join(' '),  // 광주광역시 동구
+      city:             cityFull,
       address1:         a.address1 || '',
       address2:         a.address2 || '',
       pccc:             pcccMap[String(o.id)] || ''
