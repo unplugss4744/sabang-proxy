@@ -462,3 +462,42 @@ exports.handler = async (event, context) => {
     };
   }
 };
+const actionHandlers = {
+  // ... 기존 액션들 ...
+
+  // PCCC 필드 찾기
+  'find_pccc_field': async (store, params) => {
+    const { orderId } = params;
+    if (!orderId) throw new Error('orderId는 필수 파라미터입니다');
+
+    const response = await callShopifyAPI(store, `/orders/${orderId}.json`);
+    const order = response.order;
+    
+    // 전체 JSON에서 PCCC 검색
+    const fullJson = JSON.stringify(order);
+    const pcccIndex = fullJson.indexOf('P691150040539');
+    
+    if (pcccIndex === -1) {
+      return { found: false, message: 'PCCC를 찾을 수 없습니다' };
+    }
+    
+    // PCCC 주변 200자 추출
+    const context = fullJson.substring(
+      Math.max(0, pcccIndex - 200),
+      Math.min(fullJson.length, pcccIndex + 200)
+    );
+    
+    return {
+      found: true,
+      pccc: 'P691150040539',
+      context: context,
+      // 의심 필드들
+      note: order.note,
+      note_attributes: order.note_attributes,
+      shipping_address: order.shipping_address,
+      customer: {
+        note: order.customer?.note
+      }
+    };
+  }
+};
