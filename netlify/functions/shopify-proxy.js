@@ -153,3 +153,44 @@ exports.handler = async function(event) {
     };
   }
 };
+
+// switch(action) 안에 추가
+case 'order_pccc':
+  const graphqlQuery = {
+    query: `{
+      order(id: "gid://shopify/Order/${params.id}") {
+        id
+        name
+        localizedFields(first: 10) {
+          nodes {
+            keyType
+            title
+            value
+          }
+        }
+        customAttributes {
+          key
+          value
+        }
+      }
+    }`
+  };
+
+  const gqlRes = await fetch(
+    `https://${cfg.domain}/admin/api/2026-01/graphql.json`,
+    {
+      method: 'POST',
+      headers: {
+        'X-Shopify-Access-Token': token,
+        'Content-Type':           'application/json'
+      },
+      body: JSON.stringify(graphqlQuery)
+    }
+  );
+
+  const gqlData = await gqlRes.json();
+  return {
+    statusCode: 200,
+    headers:    corsHeaders,
+    body:       JSON.stringify({ status: 'ok', data: gqlData })
+  };
