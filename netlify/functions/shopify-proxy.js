@@ -66,6 +66,10 @@ async function getOrdersWithPCCC(limit) {
   // 3. 시트에 필요한 필드만 가공
   return orders.map(o => {
     const a = o.shipping_address || {};
+    
+    // +82 10-xxxx → 010-xxxx 변환
+    const cleanPhone = (a.phone || '').replace(/^\+82\s*/, '0').replace(/\s+/g, '');
+    
     return {
       order_number:     o.order_number,
       id:               String(o.id),
@@ -75,9 +79,9 @@ async function getOrdersWithPCCC(limit) {
       created_at:       o.created_at,
       financial_status: o.financial_status,
       email:            o.email    || '',
-      phone:            a.phone    || '',
+      phone:            cleanPhone,
       zip:              a.zip      || '',
-      city:             a.city     || '',
+      city:             [a.province, a.city].filter(Boolean).join(' '),  // 광주광역시 동구
       address1:         a.address1 || '',
       address2:         a.address2 || '',
       pccc:             pcccMap[String(o.id)] || ''
