@@ -983,18 +983,62 @@ function renderResultTable(rows){
 
 async function downloadACI(){
   if(!poConverted.length){alert('변환 데이터가 없습니다.');return;}
-  const headers=['No','마스터번호','하우스번호','송하인','송하인전화번호','송하인주소','주문번호','받는사람(한글)','받는사람휴대폰번호','받는사람전화번호','우편번호','받는사람주소','받는사람상세주소','주민등록번호/개인통관고유부호','택배사요청메모','사업자통관여부','목록통관구분','실무게','박스수량','URL','Customs registered No','HS CODE','영문상품명','브랜드','해외단가','상품개수','','','','','','','','주문번호(세관신고용)'];
-  const rows=poConverted.map(r=>[r.no,'','',r.sender,r.senderTel,r.senderAddr,r.orderNo,r.receiver,r.phone1,r.phone2,r.zipCode,r.address,r.addrDetail,r.personalNo,r.memo,r.customsType,r.listingType,r.weight,r.boxQty,r.url,'',r.hsCode,r.engName,r.brand,r.exportPrice,r.qty,'','','','','','','',r.totalPrice]);
-  const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'ACI발주서');
-  XLSX.writeFile(wb,`ACI_발주서_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`);
-  try{await gasCall({action:'saveOrderStatus',rows:JSON.stringify(poConverted)});}catch(e){console.warn('OrderStatus 저장 실패:',e.message);}
-  // 다운로드 후 변환결과 초기화
-  poConverted=[];
-  document.getElementById('po-result-card').style.display='none';
-}
 
+  const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+
+  const headers = [
+    '날짜','업체코드','업체명','업체TEL','업체주소','배송사','운송장번호','주문번호',
+    '용도구분','수취인','수취인TEL','수취인HP','개인통관고유부호','우편번호','주소','나머지주소',
+    '메모','고객 구입사이트','무게','포장개수','HS CODE','상거래유형','내용물','Unit Value',
+    '상품개수','Value','Brand','사전식품신고 종류','제조국','제조회사명','중문상품명',
+    'Shipper 구입사이트','판매중개업체명','판매중개업체 등록부호','구매(배송)대행업체명','구매(배송)대행업체 등록부호',
+    '해외판매자명','해외판매자 등록부호'
+  ];
+
+  const rows = poConverted.map(r => [
+    today,
+    'NEXWON25',
+    'NEXWON Germany GmbH',
+    '15254646625',
+    'Rudolf-Diesel-Straße 2, 65719 Hofheim am Taunus',
+    '우체국',
+    '',
+    r.orderNo,
+    '1',
+    r.receiver,
+    "'" + (r.phone1 || ''),
+    "'" + (r.phone1 || ''),
+    r.personalNo,
+    r.zipCode,
+    r.address,
+    r.addrDetail || '',
+    r.memo || '',
+    'amazon.de',
+    '1',
+    '1',
+    r.hsCode,
+    'A',
+    r.engName,
+    r.exportPrice,
+    r.qty,
+    r.totalPrice,
+    '','','','','','','','','','','',''
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ACI발주서');
+  XLSX.writeFile(wb, `ACI_발주서_${today}.xlsx`);
+
+  try{
+    await gasCall({action:'saveOrderStatus', rows:JSON.stringify(poConverted)});
+  }catch(e){
+    console.warn('OrderStatus 저장 실패:', e.message);
+  }
+
+  poConverted = [];
+  document.getElementById('po-result-card').style.display = 'none';
+}
 async function fetchExchangeRate(){
   const btn=event.target; btn.textContent='⏳'; btn.disabled=true;
   try{
