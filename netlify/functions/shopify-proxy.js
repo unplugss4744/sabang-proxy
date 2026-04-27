@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // ============================================
-// 설정 (Configuration) - 환경변수 사용
+// 설정 (Configuration)
 // ============================================
 function getStoresConfig() {
   return {
@@ -30,7 +30,6 @@ async function getApoeuroToken(config) {
     return config.tokenCache;
   }
 
-  // 환경변수 검증
   if (!config.clientId || !config.clientSecret) {
     throw new Error(
       'APOEURO 환경변수가 설정되지 않았습니다. ' +
@@ -243,7 +242,7 @@ const actionHandlers = {
     );
   },
 
-  // PCCC 조회 (GraphQL)
+  // PCCC 조회 (GraphQL - 전체)
   'order_pccc': async (store, params) => {
     const { orderId } = params;
     
@@ -300,6 +299,90 @@ const actionHandlers = {
     }`;
 
     return await callShopifyGraphQL(store, query);
+  },
+
+  // PCCC만 추출 (경량화)
+  'get_pccc_only': async (store, params) => {
+    const { orderId } = params;
+    if (!orderId) throw new Error('orderId는 필수 파라미터입니다');
+
+    const STORES_CONFIG = getStoresConfig();
+    const config = STORES_CONFIG[store];
+    
+    if (!config) {
+      throw new Error(`지원하지 않는 스토어: ${store}`);
+    }
+
+    let token;
+    if (config.authType === 'admin_token') {
+      token = config.getToken();
+      if (!token) {
+        throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
+      }
+    } else if (config.authType === 'client_credentials') {
+      token = await getApoeuroToken(config);
+    }
+
+    const query = `{
+      order(id: "gid://shopify/Order/${orderId}") {
+        customAttributes {
+          key
+          value
+        }
+        note
+      }
+    }`;
+
+    try {
+      const response = await axios.post(
+        `https://${config.domain}/admin/api/2024-01/graphql.json`,
+        { query },
+        {
+          headers: {
+            'X-Shopify-Access-Token': token,
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL 오류: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      const order = response.data.data.order;
+      let pccc = '';
+      
+      // customAttributes에서 찾기
+      if (order.customAttributes) {
+        const pcccAttr = order.customAttributes.find(attr => 
+          attr.key.toLowerCase().includes('pccc') || 
+          attr.key.toLowerCase().includes('customs') ||
+          attr.key.toLowerCase().includes('personal')
+        );
+        if (pcccAttr) pccc = pcccAttr.value;
+      }
+      
+      // note에서 찾기
+      if (!pccc && order.note) {
+        const match = order.note.match(/P\d{12,13}/);
+        if (match) pccc = match[0];
+      }
+      
+      return {
+        orderId: orderId,
+        pccc: pccc || null,
+        found: !!pccc
+      };
+
+    } catch (error) {
+      if (error.response) {
+        throw new Error(
+          `GraphQL API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`
+        );
+      }
+      throw new Error(`네트워크 오류: ${error.message}`);
+    }
   }
 };
 
