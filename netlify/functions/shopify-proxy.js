@@ -1,8 +1,5 @@
 const axios = require('axios');
 
-// ============================================
-// 설정 (Configuration)
-// ============================================
 function getStoresConfig() {
   return {
     flyeuro: {
@@ -22,74 +19,45 @@ function getStoresConfig() {
   };
 }
 
-// ============================================
-// APOEURO 토큰 발급 함수
-// ============================================
 async function getApoeuroToken(config) {
   if (config.tokenCache && config.tokenExpiry && Date.now() < config.tokenExpiry) {
     return config.tokenCache;
   }
-
   if (!config.clientId || !config.clientSecret) {
-    throw new Error(
-      'APOEURO 환경변수가 설정되지 않았습니다. ' +
-      'SHOPIFY_APOEURO_CLIENT_ID와 SHOPIFY_APOEURO_CLIENT_SECRET을 확인하세요.'
-    );
+    throw new Error('APOEURO 환경변수가 설정되지 않았습니다.');
   }
-
-  try {
-    const response = await axios.post(
-      `https://${config.domain}/admin/oauth/access_token`,
-      {
-        client_id: config.clientId,
-        client_secret: config.clientSecret,
-        grant_type: 'client_credentials'
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 10000
-      }
-    );
-
-    const token = response.data.access_token;
-    const expiresIn = response.data.expires_in || 86400;
-    
-    config.tokenCache = token;
-    config.tokenExpiry = Date.now() + (expiresIn - 300) * 1000;
-    
-    return token;
-  } catch (error) {
-    throw new Error(`APOEURO 토큰 발급 실패: ${error.message}`);
-  }
+  const response = await axios.post(
+    `https://${config.domain}/admin/oauth/access_token`,
+    {
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      grant_type: 'client_credentials'
+    },
+    { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
+  );
+  const token = response.data.access_token;
+  const expiresIn = response.data.expires_in || 86400;
+  config.tokenCache = token;
+  config.tokenExpiry = Date.now() + (expiresIn - 300) * 1000;
+  return token;
 }
 
-// ============================================
-// Shopify API 호출 헬퍼
-// ============================================
 async function callShopifyAPI(store, endpoint, method = 'GET', data = null) {
-  const STORES_CONFIG = getStoresConfig();
-  const config = STORES_CONFIG[store];
-  
-  if (!config) {
-    throw new Error(`지원하지 않는 스토어: ${store}`);
-  }
+  const config = getStoresConfig()[store];
+  if (!config) throw new Error(`지원하지 않는 스토어: ${store}`);
 
   let token;
   if (config.authType === 'admin_token') {
     token = config.getToken();
-    if (!token) {
-      throw new Error(`${store} 토큰이 환경변수(SHOPIFY_FLYEURO_TOKEN)에 설정되지 않았습니다`);
-    }
-  } else if (config.authType === 'client_credentials') {
+    if (!token) throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
+  } else {
     token = await getApoeuroToken(config);
   }
 
-  const url = `https://${config.domain}/admin/api/2024-01${endpoint}`;
-  
   try {
     const response = await axios({
       method,
-      url,
+      url: `https://${config.domain}/admin/api/2024-01${endpoint}`,
       headers: {
         'X-Shopify-Access-Token': token,
         'Content-Type': 'application/json'
@@ -97,67 +65,67 @@ async function callShopifyAPI(store, endpoint, method = 'GET', data = null) {
       data,
       timeout: 30000
     });
-    
     return response.data;
   } catch (error) {
     if (error.response) {
-      throw new Error(
-        `Shopify API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`
-      );
+      throw new Error(`Shopify API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`);
     }
     throw new Error(`네트워크 오류: ${error.message}`);
   }
 }
 
-// ============================================
-// 액션 핸들러
-// ============================================
+async function callShopifyGraphQL(store, query) {
+  const config = getStoresConfig()[store];
+  if (!config) throw new Error(`지원하지 않는 스토어: ${store}`);
+
+  let token;
+  if (config.authType === 'admin_token') {
+    token = config.getToken();
+    if (!token) throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
+  } else {
+    token = await getApoeuroToken(config);
+  }
+
+  const response = await axios.post(
+    `https://${config.domain}/admin/api/2024-01/graphql.json`,
+    { query },
+    {
+      headers: {
+        'X-Shopify-Access-Token': token,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    }
+  );
+
+  if (response.data.errors) {
+    throw new Error(`GraphQL 오류: ${JSON.stringify(response.data.errors)}`);
+  }
+
+  return response.data;
+}
+
 const actionHandlers = {
-  // 주문 목록 조회
+
   'orders/list': async (store, params) => {
     const { status = 'any', limit = 50, created_at_min, created_at_max } = params;
-    
-    const queryParams = new URLSearchParams({
-      status,
-      limit: Math.min(limit, 250)
-    });
-    
+    const queryParams = new URLSearchParams({ status, limit: Math.min(limit, 250) });
     if (created_at_min) queryParams.append('created_at_min', created_at_min);
     if (created_at_max) queryParams.append('created_at_max', created_at_max);
-    
-    return await callShopifyAPI(
-      store,
-      `/orders.json?${queryParams.toString()}`
-    );
+    return await callShopifyAPI(store, `/orders.json?${queryParams.toString()}`);
   },
 
-  // 주문 상세 조회
   'orders/detail': async (store, params) => {
     const { orderId } = params;
-    
-    if (!orderId) {
-      throw new Error('orderId는 필수 파라미터입니다');
-    }
-    
-    return await callShopifyAPI(
-      store,
-      `/orders/${orderId}.json`
-    );
+    if (!orderId) throw new Error('orderId는 필수 파라미터입니다');
+    return await callShopifyAPI(store, `/orders/${orderId}.json`);
   },
 
-  // 송장번호 등록
   'orders/fulfill': async (store, params) => {
     const { orderId, trackingNumber, trackingCompany = 'DHL', notifyCustomer = true } = params;
-    
-    if (!orderId || !trackingNumber) {
-      throw new Error('orderId와 trackingNumber는 필수 파라미터입니다');
-    }
+    if (!orderId || !trackingNumber) throw new Error('orderId와 trackingNumber는 필수 파라미터입니다');
 
-    const fulfillmentOrders = await callShopifyAPI(
-      store,
-      `/orders/${orderId}/fulfillment_orders.json`
-    );
-
+    const fulfillmentOrders = await callShopifyAPI(store, `/orders/${orderId}/fulfillment_orders.json`);
     if (!fulfillmentOrders.fulfillment_orders || fulfillmentOrders.fulfillment_orders.length === 0) {
       throw new Error('Fulfillment order를 찾을 수 없습니다');
     }
@@ -168,14 +136,12 @@ const actionHandlers = {
       quantity: item.quantity
     }));
 
-    const fulfillmentData = {
+    return await callShopifyAPI(store, '/fulfillments.json', 'POST', {
       fulfillment: {
-        line_items_by_fulfillment_order: [
-          {
-            fulfillment_order_id: fulfillmentOrderId,
-            fulfillment_order_line_items: lineItems
-          }
-        ],
+        line_items_by_fulfillment_order: [{
+          fulfillment_order_id: fulfillmentOrderId,
+          fulfillment_order_line_items: lineItems
+        }],
         tracking_info: {
           number: trackingNumber,
           company: trackingCompany,
@@ -183,69 +149,40 @@ const actionHandlers = {
         },
         notify_customer: notifyCustomer
       }
-    };
-
-    return await callShopifyAPI(
-      store,
-      '/fulfillments.json',
-      'POST',
-      fulfillmentData
-    );
+    });
   },
 
-  // PCCC 필드 찾기 (디버그)
-  'find_pccc_field': async (store, params) => {
+  // PCCC 조회 - GraphQL localizationExtensions 사용
+  'orders/pccc': async (store, params) => {
     const { orderId } = params;
     if (!orderId) throw new Error('orderId는 필수 파라미터입니다');
 
-    const response = await callShopifyAPI(store, `/orders/${orderId}.json`);
-    const order = response.order;
-    
-    // PCCC 패턴 (P + 12-13자리 숫자)
-    const pcccPattern = /P\d{12,13}/g;
-    const fullJson = JSON.stringify(order);
-    const matches = fullJson.match(pcccPattern);
-    
-    if (!matches || matches.length === 0) {
-      return {
-        found: false,
-        message: 'PCCC를 찾을 수 없습니다',
-        checkedFields: {
-          note: order.note,
-          note_attributes: order.note_attributes,
-          customer_note: order.customer?.note,
-          tags: order.tags
+    const result = await callShopifyGraphQL(store, `{
+      order(id: "gid://shopify/Order/${orderId}") {
+        name
+        localizationExtensions(first: 10) {
+          nodes {
+            purpose
+            countryCode
+            title
+            value
+          }
         }
-      };
-    }
-    
-    const pccc = matches[0];
-    const pcccIndex = fullJson.indexOf(pccc);
-    
-    // PCCC 주변 컨텍스트
-    const contextStart = Math.max(0, pcccIndex - 300);
-    const contextEnd = Math.min(fullJson.length, pcccIndex + 100);
-    const context = fullJson.substring(contextStart, contextEnd);
-    
-    return {
-      found: true,
-      pccc: pccc,
-      allMatches: matches,
-      context: context,
-      fields: {
-        note: order.note,
-        note_attributes: order.note_attributes,
-        shipping_address: order.shipping_address,
-        customer_note: order.customer?.note,
-        tags: order.tags
       }
+    }`);
+
+    const extensions = result.data.order.localizationExtensions.nodes;
+    const pcccNode = extensions.find(n => n.countryCode === 'KR' && n.purpose === 'SHIPPING');
+
+    return {
+      orderId,
+      pccc: pcccNode ? pcccNode.value : null,
+      found: !!pcccNode
     };
   }
+
 };
 
-// ============================================
-// Main Handler
-// ============================================
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -254,16 +191,9 @@ exports.handler = async (event, context) => {
     'Content-Type': 'application/json'
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'POST 메서드만 허용됩니다' })
-    };
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'POST 메서드만 허용됩니다' }) };
   }
 
   try {
@@ -273,10 +203,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ 
-          error: 'store와 action은 필수 파라미터입니다',
-          received: { store, action }
-        })
+        body: JSON.stringify({ error: 'store와 action은 필수 파라미터입니다' })
       };
     }
 
@@ -285,7 +212,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           error: `지원하지 않는 액션: ${action}`,
           availableActions: Object.keys(actionHandlers)
         })
@@ -293,29 +220,18 @@ exports.handler = async (event, context) => {
     }
 
     const result = await handler(store, params);
-
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        success: true,
-        store,
-        action,
-        data: result
-      })
+      body: JSON.stringify({ success: true, store, action, data: result })
     };
 
   } catch (error) {
     console.error('Shopify Proxy Error:', error);
-    
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString()
-      })
+      body: JSON.stringify({ success: false, error: error.message, timestamp: new Date().toISOString() })
     };
   }
 };
