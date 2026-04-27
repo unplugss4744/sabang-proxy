@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Sabangnet Order Proxy for GAS",
   "dependencies": {
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
     "axios": "^1.7.9"
   }
 }
