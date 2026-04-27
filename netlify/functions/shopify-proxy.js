@@ -8,6 +8,30 @@ const APOEURO = {
   tokenExpiry: null
 };
 
+// 영문 시/도 → 한글
+function toKoreanProvince(p) {
+  const map = {
+    'Seoul': '서울특별시',
+    'Busan': '부산광역시',
+    'Daegu': '대구광역시',
+    'Incheon': '인천광역시',
+    'Gwangju': '광주광역시',
+    'Daejeon': '대전광역시',
+    'Ulsan': '울산광역시',
+    'Sejong': '세종특별자치시',
+    'Gyeonggi': '경기도',
+    'Gangwon': '강원특별자치도',
+    'Chungbuk': '충청북도',
+    'Chungnam': '충청남도',
+    'Jeonbuk': '전북특별자치도',
+    'Jeonnam': '전라남도',
+    'Gyeongbuk': '경상북도',
+    'Gyeongnam': '경상남도',
+    'Jeju': '제주특별자치도'
+  };
+  return map[p] || p || '';
+}
+
 async function getApoeuroToken() {
   if (APOEURO.tokenCache && APOEURO.tokenExpiry && Date.now() < APOEURO.tokenExpiry) {
     return APOEURO.tokenCache;
@@ -25,11 +49,10 @@ async function getApoeuroToken() {
   return APOEURO.tokenCache;
 }
 
-// 주문목록 + PCCC를 한 번에 가공해서 반환
 async function getOrdersWithPCCC(limit) {
   const token = await getApoeuroToken();
 
-  // 1. 주문 목록 (REST)
+  // 1. 주문 목록
   const ordersRes = await axios.get(
     `https://${APOEURO.domain}/admin/api/2024-01/orders.json?status=any&limit=${limit}`,
     { headers: { 'X-Shopify-Access-Token': token } }
@@ -63,18 +86,17 @@ async function getOrdersWithPCCC(limit) {
     pcccMap[n.legacyResourceId] = node ? node.value : '';
   });
 
-  // 3. 시트에 필요한 필드만 가공
+  // 3. 시트용 데이터 가공
   return orders.map(o => {
     const a = o.shipping_address || {};
-    
-    // 전화번호 정제: "+82 10-4628-0164" → "010-4628-0164"
+
+    // 전화번호: "+82 10-4628-0164" → "010-4628-0164"
     let phone = (a.phone || '').toString();
-    phone = phone.replace(/^\+?\s*82[-\s]*/, '0');  // +82 또는 82 prefix 제거 후 0 추가
-    phone = phone.replace(/\s+/g, '');               // 모든 공백 제거
-    
-    // 시/도 + 구/군/시 합치기
-    const cityFull = [a.province, a.city].filter(Boolean).join(' ');
-    
+    phone = phone.replace(/^\+?\s*82[-\s]*/, '0').replace(/\s+/g, '');
+
+    // 시/도 한글 변환 + city 합치기
+    const cityFull = [toKoreanProvince(a.province), a.city].filter(Boolean).join(' ');
+
     return {
       order_number:     o.order_number,
       id:               String(o.id),
