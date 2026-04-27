@@ -1,33 +1,41 @@
 const axios = require('axios');
 
 // ============================================
-// 설정 (Configuration)
+// 설정 (Configuration) - 환경변수 사용
 // ============================================
-const STORES_CONFIG = {
-  flyeuro: {
-    domain: '261486-98.myshopify.com',
-    getToken: () => process.env.SHOPIFY_FLYEURO_TOKEN,
-    authType: 'admin_token'
-  },
-  apoeuro: {
-    domain: 'y1nnea-w1.myshopify.com',
-    clientId: '8b34c109177eb239f84b1b5bf60f2f2c',
-    clientSecret: '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',
-    locationId: '89312952544',
-    authType: 'client_credentials',
-    tokenCache: null,
-    tokenExpiry: null
-  }
-};
+function getStoresConfig() {
+  return {
+    flyeuro: {
+      domain: '261486-98.myshopify.com',
+      getToken: () => process.env.SHOPIFY_FLYEURO_TOKEN,
+      authType: 'admin_token'
+    },
+    apoeuro: {
+      domain: 'y1nnea-w1.myshopify.com',
+      clientId: process.env.SHOPIFY_APOEURO_CLIENT_ID,
+      clientSecret: process.env.SHOPIFY_APOEURO_CLIENT_SECRET,
+      locationId: '89312952544',
+      authType: 'client_credentials',
+      tokenCache: null,
+      tokenExpiry: null
+    }
+  };
+}
 
 // ============================================
 // APOEURO 토큰 발급 함수
 // ============================================
-async function getApoeuroToken() {
-  const config = STORES_CONFIG.apoeuro;
-  
+async function getApoeuroToken(config) {
   if (config.tokenCache && config.tokenExpiry && Date.now() < config.tokenExpiry) {
     return config.tokenCache;
+  }
+
+  // 환경변수 검증
+  if (!config.clientId || !config.clientSecret) {
+    throw new Error(
+      'APOEURO 환경변수가 설정되지 않았습니다. ' +
+      'SHOPIFY_APOEURO_CLIENT_ID와 SHOPIFY_APOEURO_CLIENT_SECRET을 확인하세요.'
+    );
   }
 
   try {
@@ -60,7 +68,9 @@ async function getApoeuroToken() {
 // Shopify API 호출 헬퍼
 // ============================================
 async function callShopifyAPI(store, endpoint, method = 'GET', data = null) {
+  const STORES_CONFIG = getStoresConfig();
   const config = STORES_CONFIG[store];
+  
   if (!config) {
     throw new Error(`지원하지 않는 스토어: ${store}`);
   }
@@ -69,10 +79,10 @@ async function callShopifyAPI(store, endpoint, method = 'GET', data = null) {
   if (config.authType === 'admin_token') {
     token = config.getToken();
     if (!token) {
-      throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
+      throw new Error(`${store} 토큰이 환경변수(SHOPIFY_FLYEURO_TOKEN)에 설정되지 않았습니다`);
     }
   } else if (config.authType === 'client_credentials') {
-    token = await getApoeuroToken();
+    token = await getApoeuroToken(config);
   }
 
   const url = `https://${config.domain}/admin/api/2024-01${endpoint}`;
@@ -101,6 +111,55 @@ async function callShopifyAPI(store, endpoint, method = 'GET', data = null) {
 }
 
 // ============================================
+// GraphQL 호출 헬퍼
+// ============================================
+async function callShopifyGraphQL(store, query) {
+  const STORES_CONFIG = getStoresConfig();
+  const config = STORES_CONFIG[store];
+  
+  if (!config) {
+    throw new Error(`지원하지 않는 스토어: ${store}`);
+  }
+
+  let token;
+  if (config.authType === 'admin_token') {
+    token = config.getToken();
+    if (!token) {
+      throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
+    }
+  } else if (config.authType === 'client_credentials') {
+    token = await getApoeuroToken(config);
+  }
+
+  try {
+    const response = await axios({
+      method: 'POST',
+      url: `https://${config.domain}/admin/api/2024-01/graphql.json`,
+      headers: {
+        'X-Shopify-Access-Token': token,
+        'Content-Type': 'application/json'
+      },
+      data: { query },
+      timeout: 30000
+    });
+
+    if (response.data.errors) {
+      throw new Error(`GraphQL 오류: ${JSON.stringify(response.data.errors)}`);
+    }
+
+    return response.data;
+
+  } catch (error) {
+    if (error.response) {
+      throw new Error(
+        `GraphQL API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`
+      );
+    }
+    throw new Error(`네트워크 오류: ${error.message}`);
+  }
+}
+
+// ============================================
 // 액션 핸들러
 // ============================================
 const actionHandlers = {
@@ -122,7 +181,7 @@ const actionHandlers = {
     );
   },
 
-  // 주문 상세 조회 (고객정보 포함)
+  // 주문 상세 조회
   'orders/detail': async (store, params) => {
     const { orderId } = params;
     
@@ -136,7 +195,7 @@ const actionHandlers = {
     );
   },
 
-  // 송장번호 등록 (Fulfillment 생성)
+  // 송장번호 등록
   'orders/fulfill': async (store, params) => {
     const { orderId, trackingNumber, trackingCompany = 'DHL', notifyCustomer = true } = params;
     
@@ -184,9 +243,7 @@ const actionHandlers = {
     );
   },
 
-  // ============================================
-  // PCCC 조회 (GraphQL) - 신규 추가
-  // ============================================
+  // PCCC 조회 (GraphQL)
   'order_pccc': async (store, params) => {
     const { orderId } = params;
     
@@ -194,77 +251,31 @@ const actionHandlers = {
       throw new Error('orderId는 필수 파라미터입니다');
     }
 
-    const config = STORES_CONFIG[store];
-    if (!config) {
-      throw new Error(`지원하지 않는 스토어: ${store}`);
-    }
-
-    // 토큰 가져오기
-    let token;
-    if (config.authType === 'admin_token') {
-      token = config.getToken();
-      if (!token) {
-        throw new Error(`${store} 토큰이 환경변수에 설정되지 않았습니다`);
-      }
-    } else if (config.authType === 'client_credentials') {
-      token = await getApoeuroToken();
-    }
-
-    // GraphQL 쿼리
-    const graphqlQuery = {
-      query: `{
-        order(id: "gid://shopify/Order/${orderId}") {
-          id
-          name
-          legacyResourceId
-          customAttributes {
-            key
-            value
-          }
-          shippingAddress {
-            address1
-            address2
-            city
-            zip
-            phone
-          }
-          note
-          tags
+    const query = `{
+      order(id: "gid://shopify/Order/${orderId}") {
+        id
+        name
+        legacyResourceId
+        customAttributes {
+          key
+          value
         }
-      }`
-    };
-
-    try {
-      const response = await axios({
-        method: 'POST',
-        url: `https://${config.domain}/admin/api/2024-01/graphql.json`,
-        headers: {
-          'X-Shopify-Access-Token': token,
-          'Content-Type': 'application/json'
-        },
-        data: graphqlQuery,
-        timeout: 30000
-      });
-
-      if (response.data.errors) {
-        throw new Error(`GraphQL 오류: ${JSON.stringify(response.data.errors)}`);
+        shippingAddress {
+          address1
+          address2
+          city
+          zip
+          phone
+        }
+        note
+        tags
       }
+    }`;
 
-      return response.data;
-
-    } catch (error) {
-      if (error.response) {
-        throw new Error(
-          `GraphQL API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`
-        );
-      }
-      throw new Error(`네트워크 오류: ${error.message}`);
-    }
+    return await callShopifyGraphQL(store, query);
   },
 
-  // ============================================
-  // 주문 PCCC 일괄 조회 - 신규 추가
-  // ============================================
+  // 주문 PCCC 일괄 조회
   'orders_with_pccc': async (store, params) => {
     const { orderIds } = params;
     
@@ -272,58 +283,23 @@ const actionHandlers = {
       throw new Error('orderIds 배열은 필수 파라미터입니다');
     }
 
-    const config = STORES_CONFIG[store];
-    let token;
-    if (config.authType === 'admin_token') {
-      token = config.getToken();
-    } else if (config.authType === 'client_credentials') {
-      token = await getApoeuroToken();
-    }
-
     const orderIdsGql = orderIds.slice(0, 100).map(id => `"gid://shopify/Order/${id}"`).join(',');
     
-    const graphqlQuery = {
-      query: `{
-        nodes(ids: [${orderIdsGql}]) {
-          ... on Order {
-            id
-            legacyResourceId
-            name
-            customAttributes {
-              key
-              value
-            }
+    const query = `{
+      nodes(ids: [${orderIdsGql}]) {
+        ... on Order {
+          id
+          legacyResourceId
+          name
+          customAttributes {
+            key
+            value
           }
         }
-      }`
-    };
-
-    try {
-      const response = await axios({
-        method: 'POST',
-        url: `https://${config.domain}/admin/api/2024-01/graphql.json`,
-        headers: {
-          'X-Shopify-Access-Token': token,
-          'Content-Type': 'application/json'
-        },
-        data: graphqlQuery,
-        timeout: 30000
-      });
-
-      if (response.data.errors) {
-        throw new Error(`GraphQL 오류: ${JSON.stringify(response.data.errors)}`);
       }
+    }`;
 
-      return response.data;
-
-    } catch (error) {
-      if (error.response) {
-        throw new Error(
-          `GraphQL API 오류 [${error.response.status}]: ${JSON.stringify(error.response.data)}`
-        );
-      }
-      throw new Error(`네트워크 오류: ${error.message}`);
-    }
+    return await callShopifyGraphQL(store, query);
   }
 };
 
