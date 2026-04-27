@@ -465,7 +465,7 @@ exports.handler = async (event, context) => {
 const actionHandlers = {
   // ... 기존 액션들 ...
 
-  // PCCC 필드 찾기
+  // PCCC 필드 찾기 (패턴 매칭)
   'find_pccc_field': async (store, params) => {
     const { orderId } = params;
     if (!orderId) throw new Error('orderId는 필수 파라미터입니다');
@@ -473,30 +473,43 @@ const actionHandlers = {
     const response = await callShopifyAPI(store, `/orders/${orderId}.json`);
     const order = response.order;
     
-    // 전체 JSON에서 PCCC 검색
+    // PCCC 패턴 (P + 12-13자리 숫자)
+    const pcccPattern = /P\d{12,13}/g;
     const fullJson = JSON.stringify(order);
-    const pcccIndex = fullJson.indexOf('P691150040539');
+    const matches = fullJson.match(pcccPattern);
     
-    if (pcccIndex === -1) {
-      return { found: false, message: 'PCCC를 찾을 수 없습니다' };
+    if (!matches || matches.length === 0) {
+      return {
+        found: false,
+        message: 'PCCC를 찾을 수 없습니다',
+        checkedFields: {
+          note: order.note,
+          note_attributes: order.note_attributes,
+          customer_note: order.customer?.note,
+          tags: order.tags
+        }
+      };
     }
     
-    // PCCC 주변 200자 추출
-    const context = fullJson.substring(
-      Math.max(0, pcccIndex - 200),
-      Math.min(fullJson.length, pcccIndex + 200)
-    );
+    const pccc = matches[0];
+    const pcccIndex = fullJson.indexOf(pccc);
+    
+    // PCCC 주변 컨텍스트 (어느 필드에 있는지 확인)
+    const contextStart = Math.max(0, pcccIndex - 300);
+    const contextEnd = Math.min(fullJson.length, pcccIndex + 100);
+    const context = fullJson.substring(contextStart, contextEnd);
     
     return {
       found: true,
-      pccc: 'P691150040539',
+      pccc: pccc,
+      allMatches: matches,
       context: context,
-      // 의심 필드들
-      note: order.note,
-      note_attributes: order.note_attributes,
-      shipping_address: order.shipping_address,
-      customer: {
-        note: order.customer?.note
+      fields: {
+        note: order.note,
+        note_attributes: order.note_attributes,
+        shipping_address: order.shipping_address,
+        customer_note: order.customer?.note,
+        tags: order.tags
       }
     };
   }
