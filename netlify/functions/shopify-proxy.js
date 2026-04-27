@@ -96,7 +96,9 @@ async function getOrdersWithPCCC(limit) {
 
     // 시/도 한글 변환 + city 합치기
     const cityFull = [toKoreanProvince(a.province), a.city].filter(Boolean).join(' ');
-
+    
+    // 한국식 이름: 성 + 이름 (강성훈)
+    const koreanName = (a.last_name || '') + (a.first_name || '');
     return {
       order_number:     o.order_number,
       id:               String(o.id),
