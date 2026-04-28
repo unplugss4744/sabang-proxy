@@ -1,5 +1,8 @@
 const axios = require('axios');
 
+// ============================================================
+// 스토어 설정 + 토큰 캐싱
+// ============================================================
 const STORES = {
   apoeuro: {
     domain: 'y1nnea-w1.myshopify.com',
@@ -11,14 +14,17 @@ const STORES = {
   },
   flyeuro: {
     domain: '261486-98.myshopify.com',
-    auth: 'token',
-    clientId: process.env.SHOPIFY_FLYEURO_CLIENT_ID,           
-    clientSecret: process.env.SHOPIFY_FLYEURO_CLIENT_SECRET,   
-    tokenCache: null,                                         
-    tokenExpiry: null                                           
+    auth: 'oauth',
+    clientId: process.env.SHOPIFY_FLYEURO_CLIENT_ID,
+    clientSecret: process.env.SHOPIFY_FLYEURO_CLIENT_SECRET,
+    tokenCache: null,
+    tokenExpiry: null
   }
 };
 
+// ============================================================
+// 한국 Province 변환
+// ============================================================
 function toKoreanProvince(p) {
   const map = {
     'Seoul': '서울특별시', 'Busan': '부산광역시', 'Daegu': '대구광역시',
@@ -31,15 +37,21 @@ function toKoreanProvince(p) {
   return map[p] || p || '';
 }
 
+// ============================================================
+// 토큰 발급 (캐싱)
+// ============================================================
 async function getToken(storeKey) {
   const s = STORES[storeKey];
   if (!s) throw new Error('지원하지 않는 스토어: ' + storeKey);
-  
-  if (s.auth === 'token') return s.token;
 
-  // OAuth 토큰 캐시
-  if (s.tokenCache && s.tokenExpiry && Date.now() < s.tokenExpiry) return s.tokenCache;
-  
+  // 캐시 유효하면 재사용
+  if (s.tokenCache && s.tokenExpiry && Date.now() < s.tokenExpiry) {
+    console.log(`[${storeKey}] 캐시된 토큰 사용`);
+    return s.tokenCache;
+  }
+
+  // 새 토큰 발급
+  console.log(`[${storeKey}] 새 토큰 발급 중...`);
   const res = await axios.post(
     `https://${s.domain}/admin/oauth/access_token`,
     {
@@ -48,42 +60,62 @@ async function getToken(storeKey) {
       grant_type: 'client_credentials'
     }
   );
+
   s.tokenCache = res.data.access_token;
+  // 만료 5분 전까지 유효하게 설정
   s.tokenExpiry = Date.now() + (res.data.expires_in - 300) * 1000;
+
+  console.log(`[${storeKey}] 토큰 저장 완료 (만료: ${new Date(s.tokenExpiry).toISOString()})`);
   return s.tokenCache;
 }
 
+// ============================================================
+// 주문 조회 (PCCC 포함)
+// ============================================================
 async function getOrdersWithPCCC(storeKey, limit, fulfillmentStatus) {
   const s = STORES[storeKey];
   const token = await getToken(storeKey);
 
-  // 1. 주문 목록
-  let url = `https://${s.domain}/admin/api/2024-01/orders.json?status=any&limit=${limit}`;
-  if (fulfillmentStatus) url += `&fulfillment_status=${fulfillmentStatus}`;
+  // 1) 주문 목록 조회
+  let url = `https://${s.domain}/admin/api/2026-01/orders.json?status=any&limit=${limit}`;
+  if (fulfillmentStatus && fulfillmentStatus !== 'any') {
+    url += `&fulfillment_status=${fulfillmentStatus}`;
+  }
 
+  console.log(`[${storeKey}] 주문 목록 조회: ${url}`);
   const ordersRes = await axios.get(url, {
     headers: { 'X-Shopify-Access-Token': token }
   });
+
   const orders = ordersRes.data.orders || [];
+  console.log(`[${storeKey}] 주문 ${orders.length}건 조회됨`);
+
   if (orders.length === 0) return [];
 
-  // 2. PCCC 일괄 조회
+  // 2) PCCC 일괄 조회 (GraphQL)
   const gids = orders.map(o => `"gid://shopify/Order/${o.id}"`).join(',');
   const gqlRes = await axios.post(
-    `https://${s.domain}/admin/api/2024-01/graphql.json`,
-    { query: `{
-      nodes(ids: [${gids}]) {
-        ... on Order {
-          legacyResourceId
-          localizationExtensions(first: 5) {
-            nodes { countryCode purpose value }
+    `https://${s.domain}/admin/api/2026-01/graphql.json`,
+    {
+      query: `{
+        nodes(ids: [${gids}]) {
+          ... on Order {
+            legacyResourceId
+            localizationExtensions(first: 5) {
+              nodes {
+                countryCode
+                purpose
+                value
+              }
+            }
           }
         }
-      }
-    }` },
+      }`
+    },
     { headers: { 'X-Shopify-Access-Token': token } }
   );
 
+  // PCCC 매핑
   const pcccMap = {};
   (gqlRes.data.data.nodes || []).forEach(n => {
     if (!n) return;
@@ -93,39 +125,56 @@ async function getOrdersWithPCCC(storeKey, limit, fulfillmentStatus) {
     pcccMap[n.legacyResourceId] = node ? node.value : '';
   });
 
-  // 3. 가공
+  console.log(`[${storeKey}] PCCC ${Object.keys(pcccMap).length}건 매핑 완료`);
+
+  // 3) 데이터 가공
   return orders.map(o => {
     const a = o.shipping_address || {};
 
+    // 전화번호 정규화 (+82 제거, 공백 제거)
     let phone = (a.phone || '').toString();
     phone = phone.replace(/^\+?\s*82[-\s]*/, '0').replace(/\s+/g, '');
 
-    const cityFull   = [toKoreanProvince(a.province), a.city].filter(Boolean).join(' ');
+    // 도시명 (Province + City)
+    const cityFull = [toKoreanProvince(a.province), a.city].filter(Boolean).join(' ');
+
+    // 한글 이름 (성+이름)
     const koreanName = (a.last_name || '') + (a.first_name || '');
 
     return {
-      store:            storeKey.toUpperCase(),
-      order_number:     o.order_number,
-      id:               String(o.id),
-      name:             koreanName || a.name || '',
-      product:          o.line_items.map(i => i.title + ' x' + i.quantity).join(', '),
-      total_price:      o.total_price,
-      created_at:       o.created_at,
+      store: storeKey.toUpperCase(),
+      order_number: o.order_number,
+      id: String(o.id),
+      name: koreanName || a.name || '',
+      product: o.line_items.map(i => `${i.title} x${i.quantity}`).join(', '),
+      total_price: o.total_price,
+      created_at: o.created_at,
       financial_status: o.financial_status,
-      email:            o.email    || '',
-      phone:            phone,
-      zip:              a.zip      || '',
-      city:             cityFull,
-      address1:         a.address1 || '',
-      address2:         a.address2 || '',
-      pccc:             pcccMap[String(o.id)] || ''
+      email: o.email || '',
+      phone: phone,
+      zip: a.zip || '',
+      city: cityFull,
+      address1: a.address1 || '',
+      address2: a.address2 || '',
+      pccc: pcccMap[String(o.id)] || ''
     };
   });
 }
 
+// ============================================================
+// Netlify Handler
+// ============================================================
 exports.handler = async (event) => {
-  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
 
   try {
     const { store, action, params = {} } = JSON.parse(event.body || '{}');
@@ -136,11 +185,26 @@ exports.handler = async (event) => {
         params.limit || 50,
         params.fulfillment_status
       );
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, data }) };
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, data })
+      };
     }
 
-    return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: '지원하지 않는 액션' }) };
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ success: false, error: '지원하지 않는 액션: ' + action })
+    };
+
   } catch (err) {
-    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message }) };
+    console.error('Error:', err.message);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, error: err.message })
+    };
   }
 };
