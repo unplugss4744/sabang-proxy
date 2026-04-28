@@ -14,7 +14,7 @@ const STORES = {
   },
   flyeuro: {
     domain: '261486-98.myshopify.com',
-    auth: 'oauth',
+    auth: 'oauth',  // ← OAuth로 변경
     clientId: process.env.SHOPIFY_FLYEURO_CLIENT_ID,
     clientSecret: process.env.SHOPIFY_FLYEURO_CLIENT_SECRET,
     tokenCache: null,
@@ -62,13 +62,11 @@ async function getToken(storeKey) {
   );
 
   s.tokenCache = res.data.access_token;
-  // 만료 5분 전까지 유효하게 설정
   s.tokenExpiry = Date.now() + (res.data.expires_in - 300) * 1000;
 
-  console.log(`[${storeKey}] 토큰 저장 완료 (만료: ${new Date(s.tokenExpiry).toISOString()})`);
+  console.log(`[${storeKey}] 토큰 저장 완료`);
   return s.tokenCache;
 }
-
 // ============================================================
 // 주문 조회 (PCCC 포함)
 // ============================================================
