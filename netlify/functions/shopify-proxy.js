@@ -14,7 +14,7 @@ const STORES = {
   },
   flyeuro: {
     domain: '261486-98.myshopify.com',
-    auth: 'oauth',  // ← OAuth로 변경
+    auth: 'oauth',
     clientId: process.env.SHOPIFY_FLYEURO_CLIENT_ID,
     clientSecret: process.env.SHOPIFY_FLYEURO_CLIENT_SECRET,
     tokenCache: null,
@@ -62,11 +62,13 @@ async function getToken(storeKey) {
   );
 
   s.tokenCache = res.data.access_token;
+  // 만료 5분 전까지 유효하게 설정
   s.tokenExpiry = Date.now() + (res.data.expires_in - 300) * 1000;
 
-  console.log(`[${storeKey}] 토큰 저장 완료`);
+  console.log(`[${storeKey}] 토큰 저장 완료 (만료: ${new Date(s.tokenExpiry).toISOString()})`);
   return s.tokenCache;
 }
+
 // ============================================================
 // 주문 조회 (PCCC 포함)
 // ============================================================
@@ -74,19 +76,31 @@ async function getOrdersWithPCCC(storeKey, limit, fulfillmentStatus) {
   const s = STORES[storeKey];
   const token = await getToken(storeKey);
 
-  // 1) 주문 목록 조회
-  let url = `https://${s.domain}/admin/api/2026-01/orders.json?status=any&limit=${limit}`;
-  if (fulfillmentStatus && fulfillmentStatus !== 'any') {
-    url += `&fulfillment_status=${fulfillmentStatus}`;
-  }
+  // 1개월 전 날짜
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+  // 1) 주문 목록 조회 (fulfillment_status 없음 = 모든 주문)
+  let url = `https://${s.domain}/admin/api/2026-01/orders.json?status=any&limit=${limit}&created_at_min=${oneMonthAgo.toISOString()}`;
 
   console.log(`[${storeKey}] 주문 목록 조회: ${url}`);
   const ordersRes = await axios.get(url, {
     headers: { 'X-Shopify-Access-Token': token }
   });
 
-  const orders = ordersRes.data.orders || [];
+  let orders = ordersRes.data.orders || [];
   console.log(`[${storeKey}] 주문 ${orders.length}건 조회됨`);
+
+  // 2) 송장번호 없는 주문만 필터링
+  orders = orders.filter(o => {
+    const fulfillments = o.fulfillments || [];
+    // fulfillments 없으면 포함
+    if (fulfillments.length === 0) return true;
+    // 모든 fulfillment에 tracking_number 없으면 포함
+    return fulfillments.every(f => !f.tracking_number);
+  });
+
+  console.log(`[${storeKey}] 송장 없는 주문 ${orders.length}건 필터링됨`);
 
   if (orders.length === 0) return [];
 
