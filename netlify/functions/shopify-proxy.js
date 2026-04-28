@@ -205,6 +205,80 @@ exports.handler = async (event) => {
       };
     }
 
+    if (action === 'create_product') {
+      const s = STORES[store];
+      const token = await getToken(store);
+      
+      const createRes = await axios.post(
+        `https://${s.domain}/admin/api/2026-01/products.json`,
+        { product: params.product },
+        { headers: { 'X-Shopify-Access-Token': token } }
+      );
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          product: createRes.data.product
+        })
+      };
+    }
+
+    if (action === 'add_to_collection') {
+      const s = STORES[store];
+      const token = await getToken(store);
+      
+      await axios.post(
+        `https://${s.domain}/admin/api/2026-01/collects.json`,
+        {
+          collect: {
+            product_id: params.product_id,
+            collection_id: params.collection_id
+          }
+        },
+        { headers: { 'X-Shopify-Access-Token': token } }
+      );
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true })
+      };
+    }
+
+    if (action === 'set_inventory') {
+      const s = STORES[store];
+      const token = await getToken(store);
+      
+      // Step 1: connect
+      await axios.post(
+        `https://${s.domain}/admin/api/2026-01/inventory_levels/connect.json`,
+        {
+          location_id: params.location_id,
+          inventory_item_id: params.inventory_item_id
+        },
+        { headers: { 'X-Shopify-Access-Token': token } }
+      );
+      
+      // Step 2: set quantity
+      await axios.post(
+        `https://${s.domain}/admin/api/2026-01/inventory_levels/set.json`,
+        {
+          location_id: params.location_id,
+          inventory_item_id: params.inventory_item_id,
+          available: params.available
+        },
+        { headers: { 'X-Shopify-Access-Token': token } }
+      );
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true })
+      };
+    }
+
     return {
       statusCode: 400,
       headers,
