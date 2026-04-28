@@ -12,7 +12,10 @@ const STORES = {
   flyeuro: {
     domain: '261486-98.myshopify.com',
     auth: 'token',
-    token: process.env.SHOPIFY_FLYEURO_TOKEN
+    clientId: process.env.SHOPIFY_FLYEURO_CLIENT_ID,           
+    clientSecret: process.env.SHOPIFY_FLYEURO_CLIENT_SECRET,   
+    tokenCache: null,                                         
+    tokenExpiry: null                                           
   }
 };
 
