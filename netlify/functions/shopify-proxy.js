@@ -279,6 +279,106 @@ exports.handler = async (event) => {
       };
     }
 
+    if (action === 'batch_create_products') {
+      const s = STORES[store];
+      const token = await getToken(store);
+      const products = params.products || [];
+      const results = [];
+
+      console.log(`[${store}] 배치 등록 시작: ${products.length}건`);
+
+      for (const prod of products) {
+        try {
+          // 1. 상품 등록
+          const createRes = await axios.post(
+            `https://${s.domain}/admin/api/2026-01/products.json`,
+            { product: prod.product },
+            { headers: { 'X-Shopify-Access-Token': token } }
+          );
+
+          const productId = createRes.data.product.id;
+          const inventoryItemId = createRes.data.product.variants[0].inventory_item_id;
+
+          // 2. 컬렉션 연결
+          if (prod.collection_id) {
+            await axios.post(
+              `https://${s.domain}/admin/api/2026-01/collects.json`,
+              {
+                collect: {
+                  product_id: productId,
+                  collection_id: prod.collection_id
+                }
+              },
+              { headers: { 'X-Shopify-Access-Token': token } }
+            );
+          }
+
+          // 3. 재고 설정
+          if (prod.location_id && inventoryItemId) {
+            await axios.post(
+              `https://${s.domain}/admin/api/2026-01/inventory_levels/connect.json`,
+              {
+                location_id: prod.location_id,
+                inventory_item_id: inventoryItemId
+              },
+              { headers: { 'X-Shopify-Access-Token': token } }
+            );
+
+            await axios.post(
+              `https://${s.domain}/admin/api/2026-01/inventory_levels/set.json`,
+              {
+                location_id: prod.location_id,
+                inventory_item_id: inventoryItemId,
+                available: prod.available || 999
+              },
+              { headers: { 'X-Shopify-Access-Token': token } }
+            );
+          }
+
+          results.push({
+            row_index: prod.row_index,
+            success: true,
+            product_id: productId,
+            title: prod.product.title
+          });
+
+          console.log(`✅ [${prod.row_index + 1}] ${prod.product.title} → ${productId}`);
+
+          // Rate limit 방어 (500ms 대기)
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+        } catch (err) {
+          results.push({
+            row_index: prod.row_index,
+            success: false,
+            error: err.message,
+            title: prod.product.title
+          });
+
+          console.log(`❌ [${prod.row_index + 1}] ${prod.product.title} → ${err.message}`);
+        }
+      }
+
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+
+      console.log(`[${store}] 배치 완료: 성공 ${successCount}건 / 실패 ${failCount}건`);
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          results: results,
+          summary: {
+            total: products.length,
+            success: successCount,
+            fail: failCount
+          }
+        })
+      };
+    }
+
     return {
       statusCode: 400,
       headers,
