@@ -1169,21 +1169,26 @@ function fillDBForm(p){
 
 async function gasCall(params){
   params.secret = '0426';
-  const body = encodeURIComponent(JSON.stringify(params));
-  const url = `${PO_GAS_URL}?d=${body}`;
-  // URL이 8000자 초과 시 POST 방식으로 전환
-  let res;
-  if(url.length > 8000){
-    res = await fetch(PO_GAS_URL, {
+  
+  // GAS 데이터 변경 액션은 무조건 POST (GET은 redirect로 인한 CORS 차단)
+  const POST_ACTIONS = ['convertOrders', 'saveOrderStatus', 'registerInvoice'];
+  
+  if (POST_ACTIONS.includes(params.action)) {
+    const res = await fetch(PO_GAS_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'd=' + body
+      body: 'd=' + encodeURIComponent(JSON.stringify(params))
     });
-  } else {
-    res = await fetch(url);
+    const data = await res.json();
+    if(data.status === 'error') throw new Error(data.message || 'GAS error');
+    return data;
   }
+  
+  // 단순 조회는 GET (payload가 작고 redirect 거의 안 일어남)
+  const url = `${PO_GAS_URL}?d=${encodeURIComponent(JSON.stringify(params))}`;
+  const res = await fetch(url);
   const data = await res.json();
-  if(data.status==='error') throw new Error(data.message||'GAS error');
+  if(data.status === 'error') throw new Error(data.message || 'GAS error');
   return data;
 }
 const TAK_CODES=[{code:'059',name:'ACI'},{code:'055',name:'CJ대한통운'},{code:'009',name:'우체국택배'}];
