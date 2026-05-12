@@ -417,55 +417,64 @@ exports.handler = async (event) => {
 
       console.log(`[${store}] order ${order_id} — open: ${openFOs.length}건`);
 
-      if (openFOs.length === 0) {
-        const statuses = fulfillmentOrders.map(fo => fo.status).join(', ') || '없음';
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            success: false,
-            error: `open fulfillment_order 없음 (현재 상태: ${statuses})`
-          })
-        };
-      }
+  if (openFOs.length === 0) {
+  // ── closed 케이스: 기존 fulfillment에 tracking 업데이트 시도 ──
+  const orderRes = await axios.get(
+    `https://${s.domain}/admin/api/2026-01/orders/${order_id}.json?fields=id,fulfillments`,
+    { headers: { 'X-Shopify-Access-Token': token } }
+  );
 
-      const fulfillRes = await axios.post(
-        `https://${s.domain}/admin/api/2026-01/fulfillments.json`,
-        {
-          fulfillment: {
-            message: '발송 처리',
-            notify_customer,
-            tracking_info: {
-              company: tracking_company,
-              number:  tracking_number,
-              url:     tracking_url
-            },
-            line_items_by_fulfillment_order: openFOs.map(fo => ({
-              fulfillment_order_id: fo.id,
-              fulfillment_order_line_items: (fo.line_items || []).map(li => ({
-                id:       li.id,
-                quantity: li.fulfillable_quantity
-              }))
-            }))
-          }
+  const existingFulfillments = (orderRes.data.order && orderRes.data.order.fulfillments) || [];
+
+  // tracking 없는 fulfillment 우선, 없으면 첫 번째 사용
+  const targetFulfillment =
+    existingFulfillments.find(f => !f.tracking_number) ||
+    existingFulfillments[0];
+
+  if (!targetFulfillment) {
+    const statuses = fulfillmentOrders.map(fo => fo.status).join(', ') || '없음';
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: `처리 가능한 fulfillment 없음 (fo 상태: ${statuses})`
+      })
+    };
+  }
+
+  console.log(`[${store}] tracking 업데이트 → fulfillment_id: ${targetFulfillment.id}`);
+
+  const updateRes = await axios.post(
+    `https://${s.domain}/admin/api/2026-01/fulfillments/${targetFulfillment.id}/update_tracking.json`,
+    {
+      fulfillment: {
+        tracking_info: {
+          company: tracking_company,
+          number:  tracking_number,
+          url:     tracking_url
         },
-        { headers: { 'X-Shopify-Access-Token': token } }
-      );
+        notify_customer
+      }
+    },
+    { headers: { 'X-Shopify-Access-Token': token } }
+  );
 
-      const created = fulfillRes.data.fulfillment;
-      console.log(`[${store}] fulfillment 완료: id=${created.id} status=${created.status}`);
+  const updated = updateRes.data.fulfillment;
+  console.log(`[${store}] tracking 업데이트 완료: ${updated.tracking_number}`);
 
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success:            true,
-          fulfillment_id:     created.id,
-          fulfillment_status: created.status,
-          tracking_number:    created.tracking_number
-        })
-      };
-    }
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      success:            true,
+      mode:               'tracking_updated',   // ← 신규 생성이 아닌 업데이트임을 표시
+      fulfillment_id:     updated.id,
+      fulfillment_status: updated.status,
+      tracking_number:    updated.tracking_number
+    })
+  };
+}
 
     // ── 지원하지 않는 액션 ─────────────────────────────────
     return {
