@@ -394,3 +394,96 @@ exports.handler = async (event) => {
     };
   }
 };
+// ── 송장 전송 (Fulfillment 생성) ────────────────────────────
+if (action === 'create_fulfillment') {
+  const s = STORES[store];
+  if (!s) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ success: false, error: '지원하지 않는 스토어: ' + store })
+    };
+  }
+
+  const token = await getToken(store);
+  const {
+    order_id,
+    tracking_number,
+    tracking_company = 'ACI EXPRESS',
+    tracking_url = '',
+    notify_customer = true
+  } = params;
+
+  if (!order_id || !tracking_number) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ success: false, error: 'order_id, tracking_number 필수' })
+    };
+  }
+
+  // Step 1: fulfillment_orders 조회 (open 상태만)
+  const foRes = await axios.get(
+    `https://${s.domain}/admin/api/2026-01/orders/${order_id}/fulfillment_orders.json`,
+    { headers: { 'X-Shopify-Access-Token': token } }
+  );
+
+  const fulfillmentOrders = foRes.data.fulfillment_orders || [];
+  const openFOs = fulfillmentOrders.filter(fo => fo.status === 'open');
+
+  console.log(`[${store}] order ${order_id} — fulfillment_orders: ${fulfillmentOrders.length}건 / open: ${openFOs.length}건`);
+
+  if (openFOs.length === 0) {
+    const statuses = fulfillmentOrders.map(fo => fo.status).join(', ') || '없음';
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: `open fulfillment_order 없음 (현재 상태: ${statuses})`
+      })
+    };
+  }
+
+  // Step 2: Fulfillment 생성
+  const fulfillmentPayload = {
+    fulfillment: {
+      message: '발송 처리',
+      notify_customer,
+      tracking_info: {
+        company: tracking_company,
+        number:  tracking_number,
+        url:     tracking_url
+      },
+      line_items_by_fulfillment_order: openFOs.map(fo => ({
+        fulfillment_order_id: fo.id,
+        fulfillment_order_line_items: (fo.line_items || []).map(li => ({
+          id:       li.id,
+          quantity: li.fulfillable_quantity
+        }))
+      }))
+    }
+  };
+
+  console.log(`[${store}] fulfillment 생성 payload:`, JSON.stringify(fulfillmentPayload));
+
+  const fulfillRes = await axios.post(
+    `https://${s.domain}/admin/api/2026-01/fulfillments.json`,
+    fulfillmentPayload,
+    { headers: { 'X-Shopify-Access-Token': token } }
+  );
+
+  const created = fulfillRes.data.fulfillment;
+  console.log(`[${store}] fulfillment 생성 완료: id=${created.id} status=${created.status}`);
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      success: true,
+      fulfillment_id:     created.id,
+      fulfillment_status: created.status,
+      tracking_number:    created.tracking_number
+    })
+  };
+}
