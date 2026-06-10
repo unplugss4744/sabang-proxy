@@ -1,5 +1,6 @@
 exports.handler = async (event) => {
   // CORS preflight 대응
+  const fetch = require('node-fetch');
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
