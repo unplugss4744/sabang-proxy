@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>📦 물류 스캔</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+    background: #0f1115; color: #e8eaed; padding: 12px; min-height: 100vh; }
+  h1 { font-size: 18px; text-align: center; margin-bottom: 10px; font-weight: 600; }
+
+  /* 탭 */
+  .tabbar { display: flex; gap: 6px; max-width: 480px; margin: 0 auto 14px; }
+  .tabbar button { flex: 1; padding: 12px; font-size: 15px; font-weight: 600; border: 1px solid #374151;
+    border-radius: 10px; background: #1c1f26; color: #9ca3af; cursor: pointer; }
+  .tabbar button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .tabpane { display: none; } .tabpane.active { display: block; }
+
+  .manual { max-width: 480px; margin: 0 auto 12px; display: flex; gap: 8px; }
+  .manual input { flex: 1; padding: 13px; font-size: 16px; border: 1px solid #374151; border-radius: 8px; background: #1c1f26; color: #e8eaed; }
+  .manual button { padding: 0 18px; font-size: 15px; font-weight: 600; border: none; border-radius: 8px; background: #2563eb; color: #fff; cursor: pointer; white-space: nowrap; }
+
+  #scanArea { position: relative; width: 100%; max-width: 480px; margin: 0 auto; }
+  #video { width: 100%; border-radius: 12px; background: #000; aspect-ratio: 4 / 3; object-fit: cover; }
+  #scanFrame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 84%; height: 26%; border: 3px solid #4ade80; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.30); pointer-events: none; }
+  #cameraToggle, #torchBtn { display: block; width: 100%; max-width: 480px; margin: 8px auto; padding: 12px;
+    font-size: 14px; border: 1px solid #374151; border-radius: 8px; background: #1c1f26; color: #cbd5e1; cursor: pointer; }
+  #status { text-align: center; padding: 10px; margin: 10px auto; border-radius: 8px; font-size: 14px; background: #1c1f26; min-height: 40px; max-width: 480px; word-break: break-word; white-space: pre-line; }
+  .status-ok { color: #4ade80; } .status-err { color: #f87171; } .status-load { color: #60a5fa; }
+
+  .btn { display: block; width: 100%; max-width: 480px; margin: 8px auto; padding: 14px; font-size: 16px; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; }
+  .btn-rescan { background: #374151; color: #fff; }
+  .btn-save   { background: #16a34a; color: #fff; }
+
+  #results { max-width: 480px; margin: 12px auto; }
+  .card { background: #1c1f26; border-radius: 12px; padding: 14px; margin-bottom: 12px; border: 1px solid #2a2e37; }
+  .card-photo { width: 100%; height: 180px; object-fit: contain; background: #0f1115; border-radius: 8px; margin-bottom: 10px; }
+  .card-photo-empty { width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: #0f1115; border-radius: 8px; margin-bottom: 10px; color: #6b7280; font-size: 13px; }
+  .card-name { font-size: 16px; font-weight: 600; margin-bottom: 6px; word-break: break-word; }
+  .card-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; border-top: 1px solid #2a2e37; }
+  .card-row .label { color: #9ca3af; }
+  .qty-normal { color: #e8eaed; font-weight: 600; }
+  .qty-multi  { color: #f87171; font-weight: 700; font-size: 17px; }
+  .badge-warn { display: inline-block; background: #7c2d12; color: #fdba74; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 6px; }
+  .link-btn { display: inline-block; background: #1e40af; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; }
+  .link-empty { color: #6b7280; font-size: 13px; }
+  .weight-box { margin-top: 12px; padding-top: 12px; border-top: 2px solid #2a2e37; }
+  .weight-box h3 { font-size: 14px; margin-bottom: 8px; color: #cbd5e1; }
+  .weight-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .weight-row label { width: 70px; font-size: 13px; color: #9ca3af; }
+  .weight-row input { flex: 1; padding: 10px; font-size: 16px; border: 1px solid #374151; border-radius: 6px; background: #0f1115; color: #e8eaed; }
+  .dim-row { display: flex; gap: 6px; flex: 1; }
+  .dim-row input { width: 100%; text-align: center; }
+  .dim-x { display: flex; align-items: center; color: #6b7280; }
+  .vol-preview { font-size: 13px; color: #60a5fa; margin: 4px 0 8px; min-height: 18px; }
+  .invoice-tag { text-align: center; font-size: 13px; color: #9ca3af; margin-bottom: 8px; }
+
+  /* 입고 탭 */
+  #recvList { max-width: 480px; margin: 8px auto; }
+  .rcard { background: #1c1f26; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid #2a2e37; }
+  .rcard.done { background: #14241a; border-color: #1f3d2a; opacity: 0.7; }
+  .rcard .rname { font-size: 15px; font-weight: 600; margin-bottom: 6px; word-break: break-word; }
+  .rmeta { font-size: 12px; color: #9ca3af; margin-bottom: 3px; }
+  .rmeta b { color: #cbd5e1; }
+  .rqty { color: #f87171; font-weight: 700; }
+  .rbtn { width: 100%; margin-top: 8px; padding: 11px; font-size: 15px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; }
+  .rbtn-recv { background: #16a34a; color: #fff; }
+  .rbtn-undo { background: #374151; color: #fff; }
+  .recv-section { font-size: 13px; color: #6b7280; margin: 16px auto 8px; max-width: 480px; border-top: 1px solid #2a2e37; padding-top: 10px; }
+</style>
+</head>
+<body>
+  <h1>📦 물류</h1>
+
+  <!-- 탭 -->
+  <div class="tabbar">
+    <button id="tab-btn-scan" class="active" onclick="switchTab('scan')">📦 송장 스캔</button>
+    <button id="tab-btn-recv" onclick="switchTab('recv')">📥 입고 체크</button>
+  </div>
+
+  <!-- ══════ 탭1: 송장 스캔 ══════ -->
+  <div id="pane-scan" class="tabpane active">
+    <div class="manual">
+      <input type="text" id="manualInvoice" inputmode="numeric" placeholder="송장번호 직접 입력" enterkeyhint="search">
+      <button onclick="manualLookup()">🔍 조회</button>
+    </div>
+    <button id="cameraToggle" onclick="toggleCamera()">📷 카메라 스캔 켜기</button>
+    <div id="scanArea" style="display:none;">
+      <video id="video" playsinline></video>
+      <div id="scanFrame"></div>
+    </div>
+    <button id="torchBtn" style="display:none;">🔦 플래시 켜기</button>
+    <div id="status" class="status-load">송장번호를 입력하거나 카메라 스캔을 켜세요</div>
+    <button id="rescanBtn" class="btn btn-rescan" style="display:none;" onclick="resetScan()">🔄 다시</button>
+    <div id="results"></div>
+  </div>
+
+  <!-- ══════ 탭2: 입고 체크 ══════ -->
+  <div id="pane-recv" class="tabpane">
+    <button class="btn btn-rescan" onclick="loadVATSummary()">🔄 입고 목록 새로고침</button>
+    <div id="recvStatus" class="status-load" style="display:none;"></div>
+    <div id="recvList"></div>
+  </div>
+
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+  // ════════════════════════════════════════════
+  var GAS_URL    = '/.netlify/functions/scan-proxy';
+  var SECRET_KEY = '0426';   // ← Auth.gs 의 SECRET_KEY 값
+  // ════════════════════════════════════════════
+
+  // ── 탭 전환 ──
+  window.switchTab = function(t) {
+    document.getElementById('pane-scan').classList.toggle('active', t === 'scan');
+    document.getElementById('pane-recv').classList.toggle('active', t === 'recv');
+    document.getElementById('tab-btn-scan').classList.toggle('active', t === 'scan');
+    document.getElementById('tab-btn-recv').classList.toggle('active', t === 'recv');
+    if (t === 'recv') { stopCamera(); loadVATSummary(); }
+  };
+
+  async function callGas(action, data) {
+    var res = await fetch(GAS_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secretKey: SECRET_KEY, action: action, data: data || {} }),
+      redirect: 'follow'
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var text = await res.text();
+    try { return JSON.parse(text); }
+    catch(e) { throw new Error('응답 파싱 실패: ' + text.slice(0, 120)); }
+  }
+
+  // ════════ 입고 탭 ════════
+  window.loadVATSummary = async function() {
+    var st = document.getElementById('recvStatus');
+    var list = document.getElementById('recvList');
+    st.style.display = 'block'; st.className = 'status-load'; st.textContent = '🔄 불러오는 중…';
+    list.innerHTML = '';
+    try {
+      var r = await callGas('getVATSummary', {});
+      if (!r.success) { st.className='status-err'; st.textContent = '❌ ' + (r.error||'실패'); return; }
+      if (r.count === 0) { st.className='status-ok'; st.textContent = '항목 없음'; return; }
+      st.style.display = 'none';
+      renderVATList(r.items);
+    } catch(e) {
+      st.className='status-err'; st.textContent = '❌ 통신 오류: ' + e.message;
+    }
+  };
+
+  function renderVATList(items) {
+    var list = document.getElementById('recvList');
+    list.innerHTML = '';
+    var firstDone = false;
+    items.forEach(function(it) {
+      // 미입고 → 입고완료 경계에 구분선
+      if (it.received && !firstDone) {
+        firstDone = true;
+        var sec = document.createElement('div');
+        sec.className = 'recv-section';
+        sec.textContent = '── 입고완료 ──';
+        list.appendChild(sec);
+      }
+      var c = document.createElement('div');
+      c.className = 'rcard' + (it.received ? ' done' : '');
+      c.id = 'rc_' + cssId(it.rowKey);
+      var qtyCls = (it.qty >= 2) ? 'rqty' : '';
+      c.innerHTML =
+        '<div class="rname">' + escapeHtml(it.name) + '</div>'
+        + '<div class="rmeta">구매일 <b>' + escapeHtml(it.buyDate) + '</b> · ' + escapeHtml(it.domain) + '</div>'
+        + '<div class="rmeta">수량 <b class="' + qtyCls + '">' + it.qty + '</b> · 부가세율 ' + escapeHtml(it.vatRate)
+        + ' · €' + Number(it.brutto).toFixed(2) + '</div>'
+        + (it.received ? '<div class="rmeta">입고일 <b>' + escapeHtml(it.inDate) + '</b></div>' : '')
+        + (it.received
+            ? '<button class="rbtn rbtn-undo" onclick="toggleRecv(\'' + escapeAttr(it.rowKey) + '\', false, this)">↩️ 입고 취소</button>'
+            : '<button class="rbtn rbtn-recv" onclick="toggleRecv(\'' + escapeAttr(it.rowKey) + '\', true, this)">✅ 입고 확인</button>');
+      list.appendChild(c);
+    });
+  }
+
+  window.toggleRecv = async function(rowKey, received, btn) {
+    btn.disabled = true; btn.textContent = '처리 중…';
+    try {
+      var r = await callGas('toggleVATReceived', { rowKey: rowKey, received: received });
+      if (r.success) { loadVATSummary(); }   // 새로고침 → 재정렬
+      else { btn.textContent = '❌ ' + (r.error||'실패'); btn.disabled = false; }
+    } catch(e) { btn.textContent = '❌ 통신 오류'; btn.disabled = false; }
+  };
+
+  // ════════ 송장 스캔 탭 (기존) ════════
+  var videoEl = document.getElementById('video');
+  var statusEl = document.getElementById('status');
+  var resultsEl = document.getElementById('results');
+  var rescanBtn = document.getElementById('rescanBtn');
+  var scanArea = document.getElementById('scanArea');
+  var camBtn = document.getElementById('cameraToggle');
+  var torchBtn = document.getElementById('torchBtn');
+  var codeReader = null, scanning = false, cameraOn = false, torchOn = false, lastCode = '', scanCandidates = [];
+
+  function setStatus(m, c) { statusEl.textContent = m; statusEl.className = c || ''; }
+
+  window.manualLookup = function() {
+    var code = document.getElementById('manualInvoice').value.trim();
+    if (!code) { setStatus('송장번호를 입력하세요', 'status-err'); return; }
+    onScanned(code);
+  };
+  document.getElementById('manualInvoice').addEventListener('keydown', function(e){ if(e.key==='Enter') manualLookup(); });
+
+  window.toggleCamera = function() { cameraOn ? stopCamera() : startCamera(); };
+
+  function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('이 브라우저는 카메라 미지원.\nSafari/Chrome 으로 열어주세요 (인앱브라우저 불가)', 'status-err'); return;
+    }
+    cameraOn = true; scanning = true; lastCode = ''; scanCandidates = [];
+    scanArea.style.display = 'block'; camBtn.textContent = '📷 카메라 끄기';
+    setStatus('송장 바코드를 초록 박스 안에 맞춰주세요', 'status-load');
+    var hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.ITF]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    codeReader = new ZXing.BrowserMultiFormatReader(hints, 200);
+    var constraints = { audio:false, video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} } };
+    codeReader.decodeFromConstraints(constraints, 'video', function(result){
+      if (!scanning) return;
+      if (result) handleScanResult(result.getText());
+    }).then(setupTorch).catch(function(e){
+      setStatus('카메라 시작 실패: ' + e.message + '\n→ Safari/Chrome 으로 열거나 직접 입력하세요', 'status-err');
+      cameraOn = false; scanArea.style.display = 'none'; camBtn.textContent = '📷 카메라 스캔 켜기';
+    });
+  }
+  function handleScanResult(code) {
+    if (!code) return;
+    scanCandidates.push(code); if (scanCandidates.length > 3) scanCandidates.shift();
+    if (scanCandidates.length === 3 && scanCandidates[0]===code && scanCandidates[1]===code && scanCandidates[2]===code) {
+      if (code !== lastCode) { lastCode = code; scanCandidates = []; onScanned(code); }
+    }
+  }
+  function setupTorch() {
+    try {
+      var stream = videoEl.srcObject; if (!stream) return;
+      var track = stream.getVideoTracks()[0];
+      var caps = (track && track.getCapabilities) ? track.getCapabilities() : {};
+      if (caps.torch) {
+        torchBtn.style.display = 'block'; torchBtn.textContent = '🔦 플래시 켜기';
+        torchBtn.onclick = function(){ torchOn=!torchOn; track.applyConstraints({advanced:[{torch:torchOn}]}); torchBtn.textContent = torchOn?'🔦 플래시 끄기':'🔦 플래시 켜기'; };
+      } else torchBtn.style.display = 'none';
+    } catch(e) { torchBtn.style.display = 'none'; }
+  }
+  function stopCamera() {
+    scanning=false; cameraOn=false; torchOn=false; scanCandidates=[];
+    try { if (codeReader) codeReader.reset(); } catch(e){}
+    scanArea.style.display='none'; torchBtn.style.display='none'; camBtn.textContent='📷 카메라 스캔 켜기';
+  }
+  async function onScanned(code) {
+    scanning=false; try { if (codeReader) codeReader.reset(); } catch(e){}
+    if (navigator.vibrate) navigator.vibrate(120);
+    setStatus('🔍 조회 중: ' + code, 'status-load');
+    try {
+      var r = await callGas('scanInvoice', { invoice: code });
+      if (!r.success) setStatus('❌ ' + (r.error||'조회 실패'), 'status-err');
+      else { setStatus('✅ ' + r.count + '건 조회됨', 'status-ok'); renderResults(r); }
+    } catch(e) { setStatus('❌ 통신 오류: ' + e.message + ' (URL='+GAS_URL+')', 'status-err'); }
+    rescanBtn.style.display = 'block';
+  }
+  window.resetScan = function() {
+    resultsEl.innerHTML=''; rescanBtn.style.display='none';
+    document.getElementById('manualInvoice').value=''; lastCode=''; scanCandidates=[];
+    if (cameraOn) { scanning=true; startCamera(); }
+    else setStatus('송장번호를 입력하거나 카메라 스캔을 켜세요', 'status-load');
+  };
+  function renderResults(r) {
+    resultsEl.innerHTML = '<div class="invoice-tag">송장: ' + r.invoice + ' (' + r.count + '건)</div>';
+    r.items.forEach(function(item, idx) {
+      var card = document.createElement('div'); card.className = 'card';
+      var photoHtml = item.photoUrl
+        ? '<img class="card-photo" src="' + item.photoUrl + '" onerror="this.outerHTML=\'<div class=card-photo-empty>이미지 로드 실패</div>\'">'
+        : '<div class="card-photo-empty">사진 없음</div>';
+      var nameHtml = '<div class="card-name">' + escapeHtml(item.productName) + (item.pdMatched?'':'<span class="badge-warn">⚠️ PD 미등록</span>') + '</div>';
+      var qtyHtml = '<div class="card-row"><span class="label">개수</span><span class="' + (item.isMulti?'qty-multi':'qty-normal') + '">' + item.qty + '개' + (item.isMulti?' ⚠️':'') + '</span></div>';
+      var purchaseHtml = '<div class="card-row"><span class="label">구매처</span>' + (item.purchaseUrl?'<a class="link-btn" href="'+item.purchaseUrl+'" target="_blank">구매서 열기</a>':'<span class="link-empty">정보 없음</span>') + '</div>';
+      var weightHtml = '<div class="weight-box"><h3>⚖️ 무게 입력 (선택)</h3>'
+        + '<div class="weight-row"><label>실무게(kg)</label><input type="number" step="0.1" inputmode="decimal" id="rw_'+idx+'" value="'+(item.realWeight||'')+'" placeholder="예: 1.2"></div>'
+        + '<div class="weight-row"><label>부피(cm)</label><div class="dim-row">'
+        + '<input type="number" inputmode="numeric" id="w_'+idx+'" placeholder="가로" oninput="updateVol('+idx+')">'
+        + '<span class="dim-x">×</span><input type="number" inputmode="numeric" id="h_'+idx+'" placeholder="세로" oninput="updateVol('+idx+')">'
+        + '<span class="dim-x">×</span><input type="number" inputmode="numeric" id="d_'+idx+'" placeholder="높이" oninput="updateVol('+idx+')">'
+        + '</div></div>'
+        + '<div class="vol-preview" id="vol_'+idx+'">'+(item.volWeight?'저장된 부피무게: '+item.volWeight+'kg':'')+'</div>'
+        + '<button class="btn btn-save" onclick="saveWeight(\''+escapeAttr(item.key)+'\', '+idx+', this)">💾 저장</button></div>';
+      card.innerHTML = photoHtml + nameHtml + qtyHtml + purchaseHtml + weightHtml;
+      resultsEl.appendChild(card);
+    });
+  }
+  window.updateVol = function(idx) {
+    var w=parseFloat(document.getElementById('w_'+idx).value)||0, h=parseFloat(document.getElementById('h_'+idx).value)||0, d=parseFloat(document.getElementById('d_'+idx).value)||0;
+    var el=document.getElementById('vol_'+idx);
+    if (w>0&&h>0&&d>0){ var v=Math.ceil((w*h*d)/6000); el.textContent='계산 부피무게: '+v+'kg ('+w+'×'+h+'×'+d+' ÷ 6000 올림)'; } else el.textContent='';
+  };
+  window.saveWeight = async function(key, idx, btn) {
+    var rw=document.getElementById('rw_'+idx).value, w=document.getElementById('w_'+idx).value, h=document.getElementById('h_'+idx).value, d=document.getElementById('d_'+idx).value;
+    btn.disabled=true; btn.textContent='저장 중…';
+    try {
+      var r = await callGas('saveWeight', { key:key, realWeight:rw, w:w, h:h, d:d });
+      if (r.success) {
+        var p=[]; if(r.saved.realWeight!=null)p.push('실무게 '+r.saved.realWeight+'kg'); if(r.saved.volWeight!=null)p.push('부피무게 '+r.saved.volWeight+'kg');
+        btn.textContent='✅ 저장됨 ('+(p.join(' / ')||'변경 없음')+')'; btn.style.background='#15803d';
+      } else { btn.textContent='❌ '+(r.error||'실패'); btn.style.background='#b91c1c'; btn.disabled=false; }
+    } catch(e){ btn.textContent='❌ 통신 오류'; btn.style.background='#b91c1c'; btn.disabled=false; }
+  };
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function escapeAttr(s){ return String(s).replace(/'/g,"\\'"); }
+  function cssId(s){ return String(s).replace(/[^a-zA-Z0-9]/g,'_'); }
+</script>
+</body>
+</html>
