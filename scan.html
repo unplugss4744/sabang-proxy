@@ -67,7 +67,7 @@
   .mrow.total { border-top: 2px solid #3b82f6; margin-top: 4px; padding-top: 10px; }
   .mrow.total .mch { color: #60a5fa; font-weight: 700; }
   .mrow.total .mval { color: #60a5fa; font-weight: 700; font-size: 16px; }
-  .ch-naver { color: #22c55e; } .ch-lotte { color: #f87171; } .ch-shopify { color: #a78bfa; }
+  .ch-naver { color: #22c55e; } .ch-lotte { color: #f87171; } .ch-shopify { color: #a78bfa; } .ch-coupang { color: #fb923c; }
 </style>
 </head>
 <body>
@@ -148,7 +148,7 @@
     months.forEach(function(m){
       var c=document.createElement('div'); c.className='mcard';
       var html='<h2>'+m.ym+'</h2>';
-      [['NAVER','네이버','ch-naver'],['LOTTE','롯데','ch-lotte'],['SHOPIFY','Shopify','ch-shopify']].forEach(function(ch){
+      [['NAVER','네이버','ch-naver'],['LOTTE','롯데','ch-lotte'],['SHOPIFY','Shopify','ch-shopify'],['COUPANG','쿠팡','ch-coupang']].forEach(function(ch){
         var v=m.channels[ch[0]]||{sales:0,count:0};
         html+='<div class="mrow"><span class="mch '+ch[2]+'">'+ch[1]+' ('+v.count+'건)</span><span class="mval">'+won(v.sales)+'</span></div>';
       });
