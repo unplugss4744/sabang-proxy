@@ -197,6 +197,30 @@ async function getOrdersExport(storeKey, months) {
 }
 
 // ============================================================
+// 상품 목록 (id → handle 매핑용). 읽기 전용, 추가 액션.
+// ============================================================
+async function listProducts(storeKey) {
+  const s = STORES[storeKey];
+  const token = await getToken(storeKey);
+  let url = `https://${s.domain}/admin/api/2026-01/products.json`
+          + `?limit=250&fields=id,handle,title,status`;
+  const out = [];
+  while (url) {
+    const res = await axios.get(url, {
+      headers: { 'X-Shopify-Access-Token': token }
+    });
+    for (const p of (res.data.products || [])) {
+      out.push({ id: String(p.id), handle: p.handle, title: p.title, status: p.status });
+    }
+    const link = res.headers['link'] || res.headers['Link'] || '';
+    const m = link.match(/<([^>]+)>;\s*rel="next"/);
+    url = m ? m[1] : null;
+  }
+  console.log(`[${storeKey}] list_products ${out.length}건`);
+  return out;
+}
+
+// ============================================================
 // Netlify Handler
 // ============================================================
 exports.handler = async (event) => {
@@ -227,6 +251,16 @@ exports.handler = async (event) => {
     // ── 주문내역 export (상품코드 포함, 기간 조회) ───────────
     if (action === 'orders_export') {
       const data = await getOrdersExport(store, params.months || 3);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, count: data.length, data })
+      };
+    }
+
+    // ── 상품 목록 (id→handle) ────────────────────────────────
+    if (action === 'list_products') {
+      const data = await listProducts(store);
       return {
         statusCode: 200,
         headers,
