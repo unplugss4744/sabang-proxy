@@ -149,6 +149,54 @@ async function getOrdersWithPCCC(storeKey, limit) {
 }
 
 // ============================================================
+// 주문내역 export (상품코드 포함 + 기간 조회 + 페이지네이션)
+// ⚠ orders_with_pccc 와 별개. 매일 주문수집/송장/스캔앱과 무관.
+// ============================================================
+async function getOrdersExport(storeKey, months) {
+  const s = STORES[storeKey];
+  const token = await getToken(storeKey);
+
+  const since = new Date();
+  since.setMonth(since.getMonth() - (months || 3));
+
+  let url = `https://${s.domain}/admin/api/2026-01/orders.json`
+          + `?status=any&limit=250&created_at_min=${since.toISOString()}`;
+  const out = [];
+
+  while (url) {   // Link 헤더 커서 페이지네이션 (3개월 전체 수집)
+    const res = await axios.get(url, {
+      headers: { 'X-Shopify-Access-Token': token }
+    });
+    const orders = res.data.orders || [];
+    for (const o of orders) {
+      for (const i of (o.line_items || [])) {
+        out.push({
+          store: storeKey.toUpperCase(),
+          order_number: o.order_number,
+          order_id: String(o.id),
+          created_at: o.created_at,
+          financial_status: o.financial_status,
+          fulfillment_status: o.fulfillment_status || '',
+          product_id:    i.product_id ? String(i.product_id) : '',
+          variant_id:    i.variant_id ? String(i.variant_id) : '',
+          sku:           i.sku || '',
+          title:         i.title,
+          variant_title: i.variant_title || '',
+          quantity:      i.quantity,
+          price:         i.price
+        });
+      }
+    }
+    const link = res.headers['link'] || res.headers['Link'] || '';
+    const m = link.match(/<([^>]+)>;\s*rel="next"/);
+    url = m ? m[1] : null;
+  }
+
+  console.log(`[${storeKey}] export ${out.length} line items (${months || 3}개월)`);
+  return out;
+}
+
+// ============================================================
 // Netlify Handler
 // ============================================================
 exports.handler = async (event) => {
@@ -173,6 +221,16 @@ exports.handler = async (event) => {
         statusCode: 200,
         headers,
         body: JSON.stringify({ success: true, data })
+      };
+    }
+
+    // ── 주문내역 export (상품코드 포함, 기간 조회) ───────────
+    if (action === 'orders_export') {
+      const data = await getOrdersExport(store, params.months || 3);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, count: data.length, data })
       };
     }
 
