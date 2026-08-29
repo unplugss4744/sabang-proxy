@@ -19,6 +19,14 @@ const STORES = {
     clientSecret: process.env.SHOPIFY_FLYEURO_CLIENT_SECRET,
     tokenCache: null,
     tokenExpiry: null
+  },
+  myapo: {
+    domain: '6vg850-x4.myshopify.com',
+    auth: 'oauth',
+    clientId: process.env.SHOPIFY_MYAPO_CLIENT_ID,
+    clientSecret: process.env.SHOPIFY_MYAPO_CLIENT_SECRET,
+    tokenCache: null,
+    tokenExpiry: null
   }
 };
 
