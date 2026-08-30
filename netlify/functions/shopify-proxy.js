@@ -74,6 +74,82 @@ async function getToken(storeKey) {
 }
 
 // ============================================================
+// 비회원 배송조회 — 이메일 + 주문번호 둘 다 일치해야만 반환
+// ============================================================
+async function trackOrder(storeKey, email, orderNumber) {
+  const s = STORES[storeKey];
+  if (!s) return { success: false, error: '지원하지 않는 스토어' };
+  if (!email || !orderNumber) return { success: false, error: '이메일과 주문번호를 모두 입력해 주세요.' };
+
+  const token = await getToken(storeKey);
+  const num = String(orderNumber).replace(/^#/, '').trim();
+
+  // 주문번호(name)로 조회 — status=any (취소/미결제 포함)
+  const url = `https://${s.domain}/admin/api/2026-01/orders.json`
+    + `?status=any&name=${encodeURIComponent('#' + num)}`
+    + `&fields=id,name,order_number,email,contact_email,created_at,financial_status,`
+    + `fulfillment_status,cancelled_at,fulfillments,line_items,order_status_url`;
+
+  let orders = [];
+  try {
+    const r = await axios.get(url, { headers: { 'X-Shopify-Access-Token': token } });
+    orders = r.data.orders || [];
+  } catch (e) { orders = []; }
+
+  // name 파라미터가 안 먹는 경우 대비 — 번호 숫자 매칭 폴백
+  const emailNorm = String(email).trim().toLowerCase();
+  const match = orders.find(o => {
+    const oe = String(o.email || o.contact_email || '').trim().toLowerCase();
+    const on = String(o.order_number || '').replace(/^#/, '');
+    return oe === emailNorm && (on === num || String(o.name).replace(/^#/, '') === num);
+  });
+
+  // 무단조회 방지: 이메일 불일치 시 존재 여부도 노출하지 않음
+  if (!match) {
+    return { success: false, error: '일치하는 주문을 찾을 수 없습니다. 이메일과 주문번호를 확인해 주세요.' };
+  }
+
+  const fuls = (match.fulfillments || []).filter(f => f.status !== 'cancelled');
+  const tracks = [];
+  fuls.forEach(f => {
+    (f.tracking_numbers && f.tracking_numbers.length
+      ? f.tracking_numbers
+      : (f.tracking_number ? [f.tracking_number] : [])
+    ).forEach((tn, i) => {
+      const urls = f.tracking_urls || (f.tracking_url ? [f.tracking_url] : []);
+      tracks.push({
+        company: f.tracking_company || '',
+        number: tn,
+        url: urls[i] || urls[0] || ''
+      });
+    });
+  });
+
+  // 상태 한글화
+  let statusKr;
+  if (match.cancelled_at) statusKr = '주문취소';
+  else if (match.fulfillment_status === 'fulfilled') statusKr = tracks.length ? '배송중' : '출고완료';
+  else if (match.fulfillment_status === 'partial') statusKr = '부분출고';
+  else if (match.financial_status === 'refunded') statusKr = '환불완료';
+  else if (match.financial_status === 'paid') statusKr = '결제완료 · 상품준비중';
+  else statusKr = '주문접수';
+
+  return {
+    success: true,
+    order: {
+      name: match.name,
+      created_at: match.created_at,
+      status: statusKr,
+      financial_status: match.financial_status,
+      fulfillment_status: match.fulfillment_status || 'unfulfilled',
+      items: (match.line_items || []).map(li => `${li.title} × ${li.quantity}`),
+      tracks,
+      order_status_url: match.order_status_url || ''
+    }
+  };
+}
+
+// ============================================================
 // 주문 조회 (PCCC 포함)
 // ============================================================
 async function getOrdersWithPCCC(storeKey, limit) {
@@ -254,6 +330,12 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({ success: true, data })
       };
+    }
+
+    // ── 비회원 배송조회 (이메일+주문번호 일치해야만 공개) ─────
+    if (action === 'track_order') {
+      const data = await trackOrder(store, params.email, params.order_number);
+      return { statusCode: 200, headers, body: JSON.stringify(data) };
     }
 
     // ── 주문내역 export (상품코드 포함, 기간 조회) ───────────
