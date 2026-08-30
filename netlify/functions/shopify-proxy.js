@@ -150,6 +150,48 @@ async function trackOrder(storeKey, email, orderNumber) {
 }
 
 // ============================================================
+// 취소/반품 클레임 조회 — 취소·전액환불·부분환불 판정
+// ============================================================
+async function getShopifyClaims(storeKey, days) {
+  const s = STORES[storeKey];
+  if (!s) throw new Error('지원하지 않는 스토어: ' + storeKey);
+  const token = await getToken(storeKey);
+
+  const since = new Date();
+  since.setDate(since.getDate() - (days || 30));
+  const url = `https://${s.domain}/admin/api/2026-01/orders.json`
+    + `?status=any&limit=250&updated_at_min=${since.toISOString()}&order=updated_at+desc`
+    + `&fields=id,order_number,name,financial_status,cancelled_at,created_at,total_price,refunds,line_items`;
+
+  const r = await axios.get(url, { headers: { 'X-Shopify-Access-Token': token } });
+  const orders = r.data.orders || [];
+
+  const claims = [];
+  orders.forEach(o => {
+    const fs = o.financial_status || '';
+    const cs = o.cancelled_at;
+    const refs = o.refunds || [];
+    let claimType = null, status = null;
+    if (cs) { claimType = '취소'; status = '취소완료'; }
+    else if (fs === 'refunded' || fs === 'voided') { claimType = '반품'; status = '반품완료'; }
+    else if (fs === 'partially_refunded' || refs.length > 0) { claimType = '반품'; status = '반품신청'; }
+    if (!claimType) return;
+
+    claims.push({
+      key: `SHOPIFY_${storeKey}_${o.id}`,
+      store: storeKey,
+      order_number: String(o.order_number || o.id),
+      claim_type: claimType,
+      status,
+      financial_status: fs,
+      product: (o.line_items || []).slice(0, 3).map(li => (li.title || '').slice(0, 40)).join(', '),
+      total_price: o.total_price || '0'
+    });
+  });
+  return claims;
+}
+
+// ============================================================
 // 주문 조회 (PCCC 포함)
 // ============================================================
 async function getOrdersWithPCCC(storeKey, limit) {
@@ -336,6 +378,12 @@ exports.handler = async (event) => {
     if (action === 'track_order') {
       const data = await trackOrder(store, params.email, params.order_number);
       return { statusCode: 200, headers, body: JSON.stringify(data) };
+    }
+
+    // ── 취소/반품 클레임 조회 (최근 N일, 취소·전액환불·부분환불 판정) ──
+    if (action === 'claims') {
+      const data = await getShopifyClaims(store, params.days || 30);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, data }) };
     }
 
     // ── 주문내역 export (상품코드 포함, 기간 조회) ───────────
